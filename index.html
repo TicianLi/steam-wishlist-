@@ -33,8 +33,46 @@ header.topbar h1 small{color:var(--muted);font-size:12px;font-weight:normal;marg
 .stat-card .s-value.accent{color:var(--accent);}
 .stat-card .s-value.green{color:#6fd88f;}
 .stat-card .s-value.orange{color:var(--orange);}
+.stat-card .s-value.red{color:#ff8a8a;}
 
-/* 工具栏 */
+/* ---- 问题 #1：工具栏分区折叠（美化布局，元素一个不少） ---- */
+/* 每个分区是一张卡片：标题行常驻可点，内容区可折叠 */
+.tb-sec{background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden;}
+.tb-sec:last-child{margin-bottom:12px;}
+.tb-head{
+  display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;
+  user-select:none;background:linear-gradient(180deg,#18232f,#16202e);
+  transition:background .15s;
+}
+.tb-head:hover{background:linear-gradient(180deg,#1d2a38,#18232f);}
+.tb-head:focus-visible{outline:2px solid var(--accent-dim);outline-offset:-2px;}
+.tb-caret{color:var(--accent);font-size:11px;width:12px;flex-shrink:0;transition:transform .18s;display:inline-block;}
+.tb-sec.open > .tb-head .tb-caret{transform:rotate(90deg);}
+.tb-title{font-size:13px;font-weight:600;color:var(--accent);letter-spacing:.5px;flex-shrink:0;}
+.tb-sub{font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;}
+.tb-badge{
+  font-size:11px;color:#9fd0f0;background:#24405c;border-radius:9px;
+  padding:1px 8px;flex-shrink:0;white-space:nowrap;
+}
+.tb-body{display:none;padding:10px 12px 12px;border-top:1px solid var(--border);}
+.tb-sec.open > .tb-body{display:block;}
+/* 分区内的行：主操作行 + 细分的高级筛选行 */
+.tb-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.tb-row + .tb-row{margin-top:9px;padding-top:9px;border-top:1px dashed #22334a;}
+.tb-label{font-size:11.5px;color:var(--muted);flex-shrink:0;min-width:auto;}
+/* 折叠后仍能一眼看到当前生效的筛选条件（可单独点击 × 清除某一条） */
+.tb-active{display:none;flex-wrap:wrap;gap:6px;padding:0 12px 10px;}
+.tb-sec.closed.has-active > .tb-active{display:flex;}
+.active-chip{
+  font-size:11.5px;background:#22344a;color:#bcd8f0;border:1px solid #2c4763;
+  border-radius:12px;padding:2px 4px 2px 9px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+}
+.active-chip b{color:#e6f2fb;font-weight:600;}
+.active-chip .chip-x{
+  background:transparent;border:none;color:#8fa3b5;cursor:pointer;font-size:13px;
+  line-height:1;padding:0 3px;border-radius:8px;
+}
+.active-chip .chip-x:hover{color:var(--red);background:#3a2020;}
 .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:12px;}
 .toolbar .spacer{flex:1;}
 input[type=text],input[type=password],input[type=number],select,textarea{
@@ -57,19 +95,64 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent-dim);}
 /* 进度条 */
 #progressWrap{display:none;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;align-items:center;gap:12px;}
 #progressWrap.show{display:flex;}
+/* 吸附模式：滚动时进度条固定在视口顶部，不会随内容滚走 */
+#progressWrap.show{position:sticky;top:0;z-index:45;}
+#progressWrap .progress-inner{display:flex;align-items:center;gap:12px;width:100%;max-width:1500px;margin:0 auto;}
 #progressLabel{font-size:13px;color:var(--accent);min-width:200px;}
-.progress-track{flex:1;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;}
+.progress-track{flex:1;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;position:relative;}
 #progressBar{height:100%;width:0;background:linear-gradient(90deg,#2c6ea5,var(--accent));border-radius:4px;transition:width .3s;}
-#progressBar.indet{width:32%;animation:indet 1.1s ease-in-out infinite alternate;}
-@keyframes indet{from{margin-left:0;}to{margin-left:68%;}}
-
+/* 不确定进度：用 transform 动画（不影响布局），避免旧的 margin-left 动画溢出 */
+#progressBar.indet{
+  width:34% !important;transition:none;
+  animation:indet 1.15s cubic-bezier(.45,.05,.55,.95) infinite;
+}
+@keyframes indet{
+  0%{transform:translateX(-100%);}
+  100%{transform:translateX(294%);}
+}
+/* 触底吸底：横向滚动条常驻可见
+   做法是把表体变成"独立的双向滚动容器"并限定高度：
+   横向滚动条就固定躺在容器底边，用户不必先把整页滚到最底部才能左右拖。 */
+.table-wrap.has-xscroll{
+  display:flex;flex-direction:column;
+  overflow:hidden;                 /* 由内层 .xscroll-body 负责滚动 */
+  padding-bottom:0;
+}
+.table-wrap.has-xscroll > .xscroll-body{
+  overflow:auto;                   /* 横 + 纵都在这里滚 */
+  -webkit-overflow-scrolling:touch;
+  flex:1 1 auto;min-height:0;
+  max-height:var(--xscroll-h,64vh);
+}
 /* 表格 */
 .table-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow-x:auto;}
-table{border-collapse:collapse;width:100%;min-width:1400px;}
+/* 16 列 + 全部 nowrap，内容本身就宽。这里给列设定合理的最小宽度，
+   保证在常见视口下确实需要横向滚动，从而让「常驻横向滚动条」有实际意义；
+   同时不再让表格被强行压缩到 100%，避免列挤在一起看不清。 */
+table{border-collapse:collapse;width:max-content;min-width:100%;}
+#tbody td:first-child,#thead th:first-child{width:34px;}
 thead th{
   position:sticky;top:0;z-index:5;background:var(--bg3);color:var(--accent);font-size:12.5px;font-weight:600;
   padding:9px 8px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap;user-select:none;
 }
+/* 横向滚动容器内表头也要吸附（同时兼容旧行为） */
+.xscroll-body thead th{position:sticky;top:0;}
+/* 各列最小宽度：保证列不会互相挤压，也让表格总宽稳定超过窄视口 */
+thead th:nth-child(2){min-width:210px;}   /* 游戏名 */
+thead th:nth-child(3){min-width:74px;}    /* AppID */
+thead th:nth-child(4){min-width:52px;}    /* 评分 */
+thead th:nth-child(5){min-width:62px;}    /* 好评率 */
+thead th:nth-child(6){min-width:96px;}    /* 当前价 */
+thead th:nth-child(7){min-width:56px;}    /* 促销 */
+thead th:nth-child(8){min-width:96px;}    /* 史低 */
+thead th:nth-child(9){min-width:70px;}    /* 史低次数 */
+thead th:nth-child(10){min-width:66px;}   /* 性价比 */
+thead th:nth-child(11){min-width:96px;}   /* 目标价 */
+thead th:nth-child(12){min-width:66px;}   /* 可信度 */
+thead th:nth-child(13){min-width:88px;}   /* 推荐 */
+thead th:nth-child(14){min-width:96px;}   /* 类别 */
+thead th:nth-child(15){min-width:110px;}  /* DLC建议 */
+thead th:nth-child(16){min-width:112px;}  /* 操作 */
 thead th.sortable{cursor:pointer;}
 thead th.sortable:hover{color:#a8d8f5;}
 thead th .arrow{font-size:10px;margin-left:3px;}
@@ -93,6 +176,47 @@ tbody tr.selected{outline:1px solid var(--accent-dim);}
 .rec-ok{background:#3a3418;color:#e8d98a;}
 .rec-wait{background:#2a3240;color:#aebccb;}
 .rec-free{background:#1d3a26;color:#9ce0b4;}
+
+/* ---- 需求 #2：折扣截止 / 倒计时 ---- */
+.sale-ok{color:#9fd0f0;font-weight:600;}
+.sale-soon{color:#ffb454;font-weight:700;}
+tr.at-low td.gname{box-shadow:inset 3px 0 0 #3ba55d;}
+.at-low-badge{display:inline-block;background:#12301d;color:#7fe0a0;font-size:10px;padding:1px 5px;border-radius:4px;margin-left:3px;font-weight:700;}
+
+/* ---- 需求 #3：综合性价比徽章 ---- */
+.val-badge{display:inline-block;font-size:12px;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap;cursor:help;}
+.val-badge small{font-weight:400;opacity:.85;font-size:10px;}
+.val-s{background:#1d3a26;color:#8ee0a8;}
+.val-a{background:#1c3850;color:#9fd0f0;}
+.val-b{background:#3a3418;color:#e8d98a;}
+.val-c{background:#3d2f1a;color:#e0b878;}
+.val-d{background:#3a2020;color:#e8a0a0;}
+
+/* ---- 需求 #4：系列分组 ---- */
+tr.series-head td{background:linear-gradient(90deg,#1b2b40,#16202e);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:7px 10px;}
+.series-title{font-weight:700;color:#9fd0f0;margin-right:12px;}
+.series-stat{font-size:12px;color:var(--muted);}
+tr.series-head + tr td{padding-left:14px;}
+.series-chip{display:inline-block;background:#243a58;color:#a8cdf0;font-size:10px;padding:1px 6px;border-radius:8px;margin-top:3px;}
+.mini-sel{background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;font-size:11px;padding:1px 3px;margin-left:4px;max-width:74px;}
+#btnGroupToggle.off{opacity:.6;}
+
+/* ---- 需求 #1：详情页标签分类 ---- */
+.tag-block{margin-bottom:8px;}
+.tag-block-title{font-size:12px;color:var(--muted);margin-bottom:4px;}
+.tag{display:inline-block;background:#22344a;color:#bcd8f0;font-size:11px;padding:2px 8px;border-radius:10px;margin:0 4px 4px 0;}
+.tag.k-feature{background:#1d3a2e;color:#a8e0c0;}
+.tag.k-category{background:#332a44;color:#cdbcf0;}
+.tag.k-platform{background:#3a3222;color:#e8d8a8;}
+.vs-box{display:grid;grid-template-columns:1fr;gap:4px;margin-top:6px;}
+.vs-row{display:grid;grid-template-columns:76px 1fr 56px;align-items:center;gap:8px;font-size:12px;}
+.vs-name{color:var(--muted);}
+.vs-bar{display:block;height:8px;background:#1b2838;border-radius:5px;overflow:hidden;}
+.vs-bar i{display:block;height:100%;background:linear-gradient(90deg,#3d7cab,#66c0f4);border-radius:5px;}
+.vs-pct{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums;}
+.vs-note{margin-top:6px;font-size:11px;color:var(--muted);line-height:1.6;}
+tr.more-row td{background:#14202e;border-top:1px solid var(--border);padding:10px;}
+.more-tip{font-size:12px;color:var(--muted);text-align:center;}
 .td-note{max-width:160px;overflow:hidden;text-overflow:ellipsis;cursor:pointer;color:var(--muted);}
 .td-note:hover{color:var(--accent);}
 .td-target,.td-low,.td-count{cursor:pointer;}
@@ -184,8 +308,12 @@ button,.btn,.td-low,.td-count,.td-target,.gname{touch-action:manipulation;-webki
 #taskReopen{position:fixed;right:16px;bottom:16px;z-index:119;display:none;}
 
 /* toast */
-#toasts{position:fixed;top:16px;right:16px;z-index:200;display:flex;flex-direction:column;gap:8px;max-width:min(360px,90vw);}
-.toast{background:var(--bg3);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:8px;padding:10px 14px;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.5);animation:tin .25s ease;word-break:break-all;}
+/* 修复：toast 原来固定在 top:16px;right:16px，会正好盖住右上角的
+   「⚙️ 设置」按钮（欢迎提示一直显示时按钮点不动）。
+   现在下移到顶栏下方，并且把容器本身设为不接收点击，
+   只有 toast 卡片自身可交互 —— 按钮永远不会被挡住。 */
+#toasts{position:fixed;top:78px;right:16px;z-index:200;display:flex;flex-direction:column;gap:8px;max-width:min(360px,90vw);pointer-events:none;}
+.toast{background:var(--bg3);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:8px;padding:10px 14px;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.5);animation:tin .25s ease;word-break:break-all;pointer-events:auto;}
 .toast.success{border-left-color:var(--green);}
 .toast.error{border-left-color:var(--red);}
 .toast.warn{border-left-color:var(--yellow);}
@@ -195,19 +323,88 @@ button,.btn,.td-low,.td-count,.td-target,.gname{touch-action:manipulation;-webki
 .dbg-entry{font-size:12px;padding:4px 6px;border-bottom:1px solid #1a2736;font-family:Consolas,monospace;}
 .dbg-ok{color:#9ce0b4;} .dbg-fail{color:#ff9c9c;}
 
+/* ---- 问题 #4：隐私访问门（密码锁） ---- */
+/* 初始状态整页遮住，未通过验证前看不到任何数据；脚本可用时才由 JS 决定是否解锁 */
+#gate{
+  position:fixed;inset:0;z-index:9999;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+#gate.gate-hidden{display:none;}
+.gate-card{
+  width:min(400px,100%);background:var(--bg2);border:1px solid var(--border);
+  border-radius:14px;padding:26px 24px;box-shadow:0 18px 60px rgba(0,0,0,.6);text-align:center;
+}
+.gate-card .g-icon{font-size:34px;line-height:1;margin-bottom:10px;}
+.gate-card h2{margin:0 0 6px;font-size:17px;color:var(--accent);letter-spacing:.5px;}
+.gate-card .g-tip{font-size:12.5px;color:var(--muted);margin-bottom:18px;line-height:1.6;}
+.gate-card input{
+  width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);
+  border-radius:8px;padding:10px 12px;font-size:14px;outline:none;text-align:center;letter-spacing:2px;
+}
+.gate-card input:focus{border-color:var(--accent-dim);}
+.gate-card button{
+  width:100%;margin-top:12px;background:#1b4a6b;border:1px solid var(--accent-dim);
+  color:#cfe9fb;border-radius:8px;padding:10px;font-size:14px;cursor:pointer;font-family:inherit;
+}
+.gate-card button:hover{background:#1f5a80;}
+.gate-card button:disabled{opacity:.5;cursor:not-allowed;}
+.gate-msg{font-size:12.5px;color:var(--red);min-height:16px;margin-top:9px;}
+.gate-foot{font-size:11px;color:#4d6478;margin-top:16px;line-height:1.6;}
+.gate-locked-note{font-size:11.5px;color:var(--muted);}
+body.gate-locked .wrap,
+body.gate-locked #toasts,
+body.gate-locked #taskPanel,
+body.gate-locked #taskReopen,
+body.gate-locked .overlay,
+body.gate-locked .modal{visibility:hidden !important;}
+
 /* 移动端 */
 @media (max-width:720px){
   .detail-grid{grid-template-columns:1fr;}
   .cand-item img{width:120px;height:45px;}
   header.topbar h1{font-size:17px;}
   .toolbar{padding:8px;}
-  #toasts{left:16px;right:16px;max-width:none;}
+  #toasts{left:16px;right:16px;max-width:none;top:74px;}
   table{min-width:1250px;}
   .btn{padding:9px 13px;}   /* 手机上按钮更大更好点 */
+  /* 问题 #1：手机上分区标题与内部控件更紧凑、更好点 */
+  .tb-head{padding:10px 10px;gap:6px;}
+  .tb-title{font-size:12.5px;}
+  .tb-sub{font-size:11px;}
+  .tb-body{padding:9px 10px 10px;}
+  .tb-row{gap:7px;}
+  .tb-row .btn,.tb-row select,.tb-row input{flex:1 1 auto;min-width:0;}
+  .tb-row .tb-label{width:100%;}
+  .tb-sec{scroll-margin-top:8px;}
+  .active-chip{font-size:11px;}
+  .gate-card{padding:22px 18px;}
 }
 </style>
 </head>
-<body data-page-node-id="GxQGEbvAxU5LER3caJ9kRP">
+<body class="gate-locked" data-page-node-id="GxQGEbvAxU5LER3caJ9kRP">
+
+<!-- ============================================================
+     问题 #4：隐私访问门
+     未通过验证前，页面主体（.wrap / 弹窗 / toast）全部隐藏，
+     只有这个锁屏可见。密码以「加盐 SHA-256」比对，明文不落盘。
+     默认：未修改 GATE_CONFIG.hash 时，整站直接放行（不锁），
+     避免你改到一半把自己挡在门外。
+     ============================================================ -->
+<div id="gate">
+  <div class="gate-card">
+    <div class="g-icon">🔒</div>
+    <h2>私有清单</h2>
+    <div class="g-tip">此页面已设置访问密码<br>请输入密码后继续</div>
+    <input type="password" id="gateInput" placeholder="请输入访问密码" autocomplete="current-password" inputmode="text">
+    <button id="gateBtn">进入</button>
+    <div class="gate-msg" id="gateMsg"></div>
+    <label class="check-row" style="justify-content:center;margin:12px 0 0;">
+      <input type="checkbox" id="gateRemember"><span style="font-size:12px;color:var(--muted);">记住我（7 天内免输入）</span>
+    </label>
+    <div class="gate-foot">密码仅用于本机校验，不会上传到任何服务器。</div>
+  </div>
+</div>
+
 <div class="wrap" data-page-node-id="DjPzMfHVzRjtAunlNyzwxa">
   <header class="topbar" data-page-node-id="333WamupF8NKSXpH5HC0ef">
     <h1 data-page-node-id="Hkp5orTwjJKsBkJUlbDjz2">Steam 愿望单 · 史低清单<small data-page-node-id="3h96rb76IJ4z5gs5UjJcob">数据来自 Steam / ITAD · 全部保存在本机浏览器</small><span id="jsStatus" style="font-size:11px;color:var(--muted);font-weight:normal;margin-left:6px;"></span></h1>
@@ -219,47 +416,113 @@ button,.btn,.td-low,.td-count,.td-target,.gname{touch-action:manipulation;-webki
 
   <div class="stats" id="stats" data-page-node-id="C7oXDAyZtDlj7fZlttDGgk"></div>
 
-  <div class="toolbar" data-page-node-id="GhUHb84IyeAPnEdbuswjfQ">
-    <input type="text" id="addInput" placeholder="输入游戏名 / AppID，逗号分隔可批量添加，如：艾尔登法环, 1245620" style="flex:2;min-width:220px;" data-page-node-id="FWACnCZxfVKaVg71FZY1rI">
-    <button class="btn primary" id="btnAdd" data-page-node-id="7Db3DnHlCbDzGtxKDaVgMM">➕ 添加</button>
+  <!-- ===== 工具栏（问题 #1）：三个可折叠分区，控件与原来完全一致 ===== -->
+
+  <!-- 分区 1：添加游戏 -->
+  <section class="tb-sec open" id="secAdd">
+    <div class="tb-head" role="button" tabindex="0" aria-expanded="true" aria-controls="secAddBody">
+      <span class="tb-caret">▶</span><span class="tb-title">➕ 添加游戏</span>
+      <span class="tb-sub">输入游戏名或 AppID，逗号分隔可批量添加</span>
+    </div>
+    <div class="tb-body" id="secAddBody">
+      <div class="tb-row">
+        <input type="text" id="addInput" placeholder="输入游戏名 / AppID，逗号分隔可批量添加，如：艾尔登法环, 1245620" style="flex:1;min-width:220px;" data-page-node-id="FWACnCZxfVKaVg71FZY1rI">
+        <button class="btn primary" id="btnAdd" data-page-node-id="7Db3DnHlCbDzGtxKDaVgMM">➕ 添加</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 分区 2：筛选与工具 -->
+  <section class="tb-sec" id="secTools">
+    <div class="tb-head" role="button" tabindex="0" aria-expanded="false" aria-controls="secToolsBody">
+      <span class="tb-caret">▶</span><span class="tb-title">🔎 筛选与工具</span>
+      <span class="tb-sub">搜索、排序条件、系列分组、导入导出、批量删除</span>
+      <span class="tb-badge" id="secToolsBadge" style="display:none;"></span>
+    </div>
+    <div class="tb-active" id="secToolsActive"></div>
+    <div class="tb-body" id="secToolsBody">
+      <div class="tb-row">
+        <span class="tb-label">常用</span>
+        <input type="text" id="filterSearch" placeholder="🔍 搜索过滤 (/ 聚焦)" style="min-width:150px;" data-page-node-id="CEXFGprOAoZPpeN2ubcAtj">
+        <select id="filterRec" data-page-node-id="UxRxkZjIJbfXFpo4R5yWKm">
+          <option value="" data-page-node-id="SFxXOjW6XRO1BAQMFJxRIa">全部推荐</option>
+          <option value="buy" data-page-node-id="me8hS0nhNZ92zaSaEfNbA6">🔴 必买</option>
+          <option value="waitpromo" data-page-node-id="41Xp4cfRtp2OdzEtfsbln8">🟠 等促销</option>
+          <option value="cheap" data-page-node-id="4Y1fsVJnFZYDxaxD0iESDF">🟢 骨折入</option>
+          <option value="ok" data-page-node-id="EzZaFerHj3Gd2nskb4aQQo">⚠️ 可入</option>
+          <option value="wait" data-page-node-id="77Z95nwmSPtiB7kPWSi2LM">⚪ 观望</option>
+          <option value="free" data-page-node-id="fFujeg5h0ECDiI0A0l26yb">🟢 免费入</option>
+        </select>
+        <select id="filterTarget" data-page-node-id="hXNhvgiFroTueWjEYWk1xX">
+          <option value="" data-page-node-id="riKsdCYIbswr81LOC46CBW">全部目标价</option>
+          <option value="reached" data-page-node-id="RNusDJZUNTHDekaHiNsdJm">已达</option>
+          <option value="notreached" data-page-node-id="YELdu9EOPUz662wfA2dWui">未达</option>
+          <option value="unset" data-page-node-id="0LRxZI3PVcUEGPDO5XLfqw">未设</option>
+        </select>
+        <select id="filterSale" title="促销 / 史低 筛选">
+          <option value="">全部促销状态</option>
+          <option value="onsale">🔥 正在打折</option>
+          <option value="lowest">📉 正在史低</option>
+          <option value="belowlow">⬇️ 已破史低</option>
+          <option value="ending">⏰ 24 小时内结束</option>
+          <option value="ending3">⏳ 3 天内结束</option>
+          <option value="notsale">未打折</option>
+        </select>
+        <button class="btn" id="btnGroupToggle" title="开启/关闭「同系列作品归组显示」（默认关闭，选择会被记住）">📚 系列分组</button>
+        <button class="btn" id="btnRescanSeries" title="重新扫描全表，识别同系列作品（同厂商 + 名称主干相似）">🔎 重扫系列</button>
+        <button class="btn" id="btnResetFilters" title="清空所有筛选条件">↺ 重置筛选</button>
+      </div>
+      <div class="tb-row">
+        <span class="tb-label">高级筛选</span>
+        <select id="filterConf" data-page-node-id="Ck2S79ktjXbbRQJvzBgeWy">
+          <option value="" data-page-node-id="zdHj7G1XszhaZb3ZVGVYKx">全部可信度</option>
+          <option value="A" data-page-node-id="yeexrBEBtz9mTF72aF3DQH">A</option>
+          <option value="B" data-page-node-id="K273XNYVKJtQzDh36yTRZZ">B</option>
+          <option value="C" data-page-node-id="JmLaZWeeYJx8ShefJzqt73">C</option>
+          <option value="pending" data-page-node-id="FIEIZOrLk214JDY4V0ouhK">待核</option>
+        </select>
+        <select id="filterSeries" title="系列筛选">
+          <option value="">全部（含散作）</option>
+          <option value="in">📚 仅系列作品</option>
+          <option value="solo">仅独立作品</option>
+        </select>
+        <select id="filterValue" title="综合性价比等级">
+          <option value="">全部性价比</option>
+          <option value="S">S 超值（85+）</option>
+          <option value="A">A 很值（75+）</option>
+          <option value="B">B 尚可（62+）</option>
+          <option value="C">C 一般（48+）</option>
+          <option value="D">D 偏贵（&lt;48）</option>
+        </select>
+        <select id="filterGenre" title="按游戏类型筛选"><option value="">全部类型</option></select>
+        <select id="filterFeature" title="按游戏特色筛选"><option value="">全部特色</option></select>
+      </div>
+      <div class="tb-row">
+        <span class="tb-label">数据</span>
+        <button class="btn" id="btnRefreshAll" data-page-node-id="zOFsqNQuaJeeebIxaj6gAd">♻️ 刷新全部</button>
+        <button class="btn" id="btnExport" data-page-node-id="hqUWNiVsVKfUeuL4F3PWEf">⬇️ 导出 JSON</button>
+        <button class="btn" id="btnImport" data-page-node-id="JVuTaEkCQkmGQI7wBKS9Jo">⬆️ 导入 JSON</button>
+        <button class="btn" id="btnCloudSync" title="问题 #3：把你的清单导出成云端副本（GitHub Actions 每天凌晨 2 点用它自动刷新并发邮件）">☁️ 同步到云端</button>
+        <button class="btn danger" id="btnDeleteSel" style="display:none;" data-page-node-id="EKcRIC3uFwbB9aq5ILiRIm">🗑 删除已选</button>
+        <button class="btn danger" id="btnClearAll" data-page-node-id="mzYCikNPD8J0zSKFImhYOB">🗑 一键清空</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="toolbar" id="legacyToolbar" style="display:none;" aria-hidden="true">
     <span class="spacer" data-page-node-id="Lz9eL7NkONrdzC2fAivVrH"></span>
-    <input type="text" id="filterSearch" placeholder="🔍 搜索过滤 (/ 聚焦)" style="min-width:150px;" data-page-node-id="CEXFGprOAoZPpeN2ubcAtj">
-    <select id="filterRec" data-page-node-id="UxRxkZjIJbfXFpo4R5yWKm">
-      <option value="" data-page-node-id="SFxXOjW6XRO1BAQMFJxRIa">全部推荐</option>
-      <option value="buy" data-page-node-id="me8hS0nhNZ92zaSaEfNbA6">🔴 必买</option>
-      <option value="waitpromo" data-page-node-id="41Xp4cfRtp2OdzEtfsbln8">🟠 等促销</option>
-      <option value="cheap" data-page-node-id="4Y1fsVJnFZYDxaxD0iESDF">🟢 骨折入</option>
-      <option value="ok" data-page-node-id="EzZaFerHj3Gd2nskb4aQQo">⚠️ 可入</option>
-      <option value="wait" data-page-node-id="77Z95nwmSPtiB7kPWSi2LM">⚪ 观望</option>
-      <option value="free" data-page-node-id="fFujeg5h0ECDiI0A0l26yb">🟢 免费入</option>
-    </select>
-    <select id="filterConf" data-page-node-id="Ck2S79ktjXbbRQJvzBgeWy">
-      <option value="" data-page-node-id="zdHj7G1XszhaZb3ZVGVYKx">全部可信度</option>
-      <option value="A" data-page-node-id="yeexrBEBtz9mTF72aF3DQH">A</option>
-      <option value="B" data-page-node-id="K273XNYVKJtQzDh36yTRZZ">B</option>
-      <option value="C" data-page-node-id="JmLaZWeeYJx8ShefJzqt73">C</option>
-      <option value="pending" data-page-node-id="FIEIZOrLk214JDY4V0ouhK">待核</option>
-    </select>
-    <select id="filterTarget" data-page-node-id="hXNhvgiFroTueWjEYWk1xX">
-      <option value="" data-page-node-id="riKsdCYIbswr81LOC46CBW">全部目标价</option>
-      <option value="reached" data-page-node-id="RNusDJZUNTHDekaHiNsdJm">已达</option>
-      <option value="notreached" data-page-node-id="YELdu9EOPUz662wfA2dWui">未达</option>
-      <option value="unset" data-page-node-id="0LRxZI3PVcUEGPDO5XLfqw">未设</option>
-    </select>
-    <button class="btn" id="btnRefreshAll" data-page-node-id="zOFsqNQuaJeeebIxaj6gAd">♻️ 刷新全部</button>
-    <button class="btn" id="btnExport" data-page-node-id="hqUWNiVsVKfUeuL4F3PWEf">⬇️ 导出 JSON</button>
-    <button class="btn" id="btnImport" data-page-node-id="JVuTaEkCQkmGQI7wBKS9Jo">⬆️ 导入 JSON</button>
-    <button class="btn danger" id="btnDeleteSel" style="display:none;" data-page-node-id="EKcRIC3uFwbB9aq5ILiRIm">🗑 删除已选</button>
-    <button class="btn danger" id="btnClearAll" data-page-node-id="mzYCikNPD8J0zSKFImhYOB">🗑 一键清空</button>
   </div>
 
   <div id="progressWrap" data-page-node-id="GvrS8BmqFGNSV7t9QUNsE6">
-    <span id="progressLabel" data-page-node-id="rA5xOUwTr3BIjDyOJocmpJ">正在处理…</span>
-    <div class="progress-track" data-page-node-id="WgE1SynCCubGmRzUxVTwLw"><div id="progressBar" data-page-node-id="k81hItELnoRf35f8wQkDij"></div></div>
-    <button class="btn small danger" id="btnCancelTask" data-page-node-id="7HkvtCXIAEvezwtzX0YBfg">取消任务</button>
+    <div class="progress-inner">
+      <span id="progressLabel" data-page-node-id="rA5xOUwTr3BIjDyOJocmpJ">正在处理…</span>
+      <div class="progress-track" data-page-node-id="WgE1SynCCubGmRzUxVTwLw"><div id="progressBar" data-page-node-id="k81hItELnoRf35f8wQkDij"></div></div>
+      <button class="btn small danger" id="btnCancelTask" data-page-node-id="7HkvtCXIAEvezwtzX0YBfg">取消任务</button>
+    </div>
   </div>
 
-  <div class="table-wrap" data-page-node-id="QWFd3HpHmFfzIfmGejlDe6">
+  <div class="table-wrap" id="tableWrap" data-page-node-id="QWFd3HpHmFfzIfmGejlDe6">
+   <div class="xscroll-body" id="xscrollBody">
     <table data-page-node-id="IGUmz30ANQhYyrypyu8ugs">
       <thead data-page-node-id="YlVcHdLFMDb532IxNxZHKM">
         <tr data-page-node-id="jgIVP8HjH8giLLd1JAe3fB">
@@ -269,20 +532,23 @@ button,.btn,.td-low,.td-count,.td-target,.gname{touch-action:manipulation;-webki
           <th class="sortable" data-sort="score" data-page-node-id="99ChAbPsTQAcne4vQAihJz">评分<span class="arrow" data-page-node-id="ThgRlKbmqPzpnKU6r6Vwb5"></span></th>
           <th data-page-node-id="ysfyPMCJ5eIjHq7wESgpl1">好评率</th>
           <th class="sortable" data-sort="price" data-page-node-id="yNlp8iIa6AxrFGYFgdsYbY">当前价<span class="arrow" data-page-node-id="3C5gg6vXoFbAhEHad6cnuK"></span></th>
-          <th data-page-node-id="rbNI6CaEm1mDpi0Qiu4794">促销</th>
+          <th class="sortable" data-sort="deadline" data-page-node-id="rbNI6CaEm1mDpi0Qiu4794">促销 / 截止<span class="arrow"></span></th>
           <th class="sortable" data-sort="low" data-page-node-id="VGdHRSaeSgZzE0zAhOeFsz">史低<span class="arrow" data-page-node-id="rkzeRoxo4HDSUj2TUTiEFO"></span></th>
           <th data-page-node-id="EWKlp4DEQjxXVykdntY2Mn">史低次数</th>
-          <th class="sortable" data-sort="value" title="性价比 = 史低 ÷ 评分，越小越值">性价比<span class="arrow"></span></th>
+          <th class="sortable" data-sort="value" title="综合性价比 0-100：口碑 / 史低水位 / 绝对价格 / 折扣 / 稀缺性 等多因子加权。悬停看明细">性价比<span class="arrow"></span></th>
           <th class="sortable" data-sort="target" data-page-node-id="B87LJYGCyCuC4QbK5KZvc5">目标价<span class="arrow" data-page-node-id="mDhgie8i32bPxEx7WA4xiC"></span></th>
           <th data-page-node-id="OjYoCHjLebMs0kr0F0SAXb">可信度</th>
           <th data-page-node-id="vDSDjYFTpHTjsqOCityROI">推荐</th>
-          <th data-page-node-id="IHqYXVyX5jj9AsWrS0ZiYk">类别</th>
+          <th id="thTag" data-page-node-id="IHqYXVyX5jj9AsWrS0ZiYk">类别
+            <select id="tagKindSel" class="mini-sel" title="切换此处显示的标签类别"></select>
+          </th>
           <th data-page-node-id="bS0HBtfxV7wU41HU4bGtCO">DLC建议</th>
           <th data-page-node-id="c51aUa8D4yLDyUk1OVWPoz">操作</th>
         </tr>
       </thead>
       <tbody id="tbody" data-page-node-id="gFDkEfVkb5F5Y0DQWnCc2B"></tbody>
     </table>
+   </div>
   </div>
   <input type="file" id="importFile" accept=".json,application/json" style="display:none;" data-page-node-id="tXaxJ359imRPqQMbv5keQo">
 </div>
@@ -302,7 +568,7 @@ button,.btn,.td-low,.td-count,.td-target,.gname{touch-action:manipulation;-webki
           <button type="button" class="input-act danger-act" data-act="clear-input" data-target="setItadKey" title="一键清空" aria-label="清空">✕</button>
         </span>
       </div>
-      <div class="hint" data-page-node-id="0zo7ecZciR29XxIXjAdfB5">获取地址：https://isthereanydeal.com/settings/api/ · Key 仅保存在本机</div>
+      <div class="hint" data-page-node-id="0zo7ecZciR29XxIXjAdfB5">获取地址：https://isthereanydeal.com/settings/api/ · Key 保存在本机，默认不经公共代理发送</div>
     </div>
     <div class="form-row" data-page-node-id="wWievFhWvV5jaH8CjA9baq">
       <label data-page-node-id="ik0mxX8qJZKwVLUQ37HJ8G">自定义代理地址（前缀格式，如 https://your-proxy.example.com/?url= ）</label>
@@ -315,6 +581,7 @@ button,.btn,.td-low,.td-count,.td-target,.gname{touch-action:manipulation;-webki
     </div>
     <div class="check-row" data-page-node-id="SCU9Zaov9xRuJRkBdTLDZU"><input type="checkbox" id="setAutoTranslate" data-page-node-id="iDsGWL6s4SbZlGIRNrfkBv"><label for="setAutoTranslate" style="margin:0;" data-page-node-id="bOaqcFIqgYBLwyqpwmZ0Bn">启用自动翻译（无官方中文名时）</label></div>
     <div class="check-row" data-page-node-id="kV9m22NUxkQZNzH1VBDZdC"><input type="checkbox" id="setPublicProxy" data-page-node-id="uUNlclYG8di1QHguDk1dbi"><label for="setPublicProxy" style="margin:0;" data-page-node-id="Mnoz1tZsVWRTw831qDhq8F">启用公共代理（allorigins / corsproxy / thingproxy）</label></div>
+    <div class="check-row"><input type="checkbox" id="setItadPublicProxy"><label for="setItadPublicProxy" style="margin:0;">允许 ITAD API Key 经公共代理发送（可能泄露 Key，不推荐）</label></div>
     <div class="form-row" data-page-node-id="Hg21QBrVmG7MwOGAD8BvTA">
       <label data-page-node-id="GXtRagemp1Uq4ZasXNUBlG">请求超时时间（毫秒）</label>
       <input type="number" id="setTimeout" min="3000" max="60000" step="1000" data-page-node-id="tJFh4UzqE9EErJ1vMvOeAK">
@@ -324,6 +591,15 @@ button,.btn,.td-low,.td-count,.td-target,.gname{touch-action:manipulation;-webki
       <input type="number" id="setCacheH" min="1" max="720" data-page-node-id="Y5QVhTyvHcuT1jKTYvh1y8">
     </div>
     <div class="check-row" data-page-node-id="iIf2o6nyrVobMnjBrSILCN"><input type="checkbox" id="setOcr" data-page-node-id="cEkfJEntTV4nfHqQHhauGP"><label for="setOcr" style="margin:0;" data-page-node-id="p0bXpjqEAEpMrrzrHUXDE5">启用截图 OCR 识别（Tesseract.js，联网加载）</label></div>
+    <div class="form-row" style="border-top:1px solid var(--border);padding-top:12px;">
+      <label>🔒 访问密码（问题 #4：防止他人随意访问本站）</label>
+      <div class="hint" id="gateStateHint" style="margin-bottom:8px;">正在检测…</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="btn" id="btnGateSet">设置 / 修改密码</button>
+        <button type="button" class="btn danger" id="btnGateClear">取消密码</button>
+      </div>
+      <div class="hint">密码以加盐 SHA-256 保存在本机浏览器，明文不会上传。设置后需刷新页面生效；勾选门锁上的「记住我」可 7 天免输入。</div>
+    </div>
   </div>
   <div class="modal-foot" data-page-node-id="uuacgMzncP3T6OK0L7ABHE">
     <button class="btn" data-close="modalSettings" data-page-node-id="DhHzs3VCfbxTcMnMaAJPRf">取消</button>
@@ -387,7 +663,7 @@ button,.btn,.td-low,.td-count,.td-target,.gname{touch-action:manipulation;-webki
 
 <div id="taskReopen" style="display:none;"><button class="btn" id="btnTaskReopen">📋 任务队列</button></div>
 <div id="taskPanel">
-  <div class="task-head"><b>📋 任务队列</b><span id="taskCount"></span><span class="spacer"></span><button class="btn small" id="btnClearDone">清除完成</button><button class="btn small" id="btnHideTasks">收起</button></div>
+  <div class="task-head"><b>📋 任务队列</b><span id="taskCount"></span><span class="spacer"></span><button class="btn small" id="btnRetryFailed">重试全部失败</button><button class="btn small" id="btnClearDone">清除完成</button><button class="btn small" id="btnHideTasks">收起</button></div>
   <div id="taskList"></div>
 </div>
 
@@ -399,6 +675,30 @@ button,.btn,.td-low,.td-count,.td-target,.gname{touch-action:manipulation;-webki
 /* ============================================================
  * CONFIG
  * ============================================================ */
+/* ------------------------------------------------------------
+ * 问题 #4：访问密码配置
+ *   · hash 为空字符串 ''  → 不启用密码门（任何人可访问）
+ *   · hash 填 64 位十六进制（SHA-256）→ 启用密码门
+ *   · salt 建议一起改，防止有人用彩虹表反推
+ *
+ * 怎么生成自己的密码哈希？两种办法：
+ *   ① 打开本页面 → F12 控制台 → 粘贴执行：
+ *        await __gateMakeHash('你的密码')
+ *      它会打印出 hash 和 salt，复制到下面即可（会自动写入 localStorage 生效）
+ *   ② 或者直接用页面右下角的「🔒 访问密码」按钮（设置面板里）可视化设置
+ *
+ * 注意：这是「前端门锁」，能挡住搜索引擎、路人、截图外传，
+ *       但拿不到真正的服务器级防护（源码里没有明文密码，但源码本身是公开的）。
+ *       要更强的防护请用 Cloudflare Access（见 README）。
+ * ------------------------------------------------------------ */
+const GATE_CONFIG = {
+  hash: '',                                   // ← 设置密码后这里会变成 64 位哈希
+  salt: 'sw-gate-v1',                         // 建议改成你自己的随机串
+  rememberDays: 7,                            // 「记住我」有效天数
+  lockKey: 'sw_gate_pass_v1',                 // 通过验证后的本机凭证
+  attemptsKey: 'sw_gate_tries_v1'             // 失败次数（简单限速）
+};
+
 const CONFIG = {
   SCHEMA_VERSION: 3,
   STORE_KEY: 'sw_data_v3',
@@ -423,6 +723,7 @@ const CONFIG = {
  * ============================================================ */
 const DEFAULT_SETTINGS = {
   itadKey: '',
+  itadAllowPublicProxy: false,
   customProxy: '',
   autoTranslate: true,
   usePublicProxies: true,
@@ -434,7 +735,7 @@ const DEFAULT_SETTINGS = {
 const STATE = {
   games: [],
   settings: Object.assign({}, DEFAULT_SETTINGS),
-  filters: { search: '', rec: '', conf: '', target: '' },
+  filters: { search: '', rec: '', conf: '', target: '', sale: '', series: '', value: '', genre: '', feature: '' },
   sort: { key: null, dir: 1 },          // null = 默认按添加时间倒序
   selection: new Set(),
   busy: { refreshAll: false, importing: false, adding: false, ocr: false },
@@ -443,7 +744,10 @@ const STATE = {
   taskQueue: [],              // 任务队列：{id, term, status, msg, candidates, pickPromise, resolvePick, pickOpened}
   taskPanelHidden: false,
   debugLog: [],
-  transCache: {}
+  transCache: {},
+  tagKind: 'genre',               // 「类别」列当前展示的标签类别（需求 #1）
+  groupBySeries: false,           // 是否按系列分组显示（问题 #2：默认关闭，只认用户显式选择）
+  renderLimit: 300                // 表格单页渲染上限（大清单分页，避免卡顿）
 };
 
 /* ============================================================
@@ -453,6 +757,7 @@ const $  = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const nowMs = () => Date.now();
+function toTimestampMs(v) { const n = Number(v); if (!isFinite(n) || n <= 0) return null; return n < 1e12 ? n * 1000 : n; }
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -467,6 +772,14 @@ function fmtPrice(v, currency) {
   return (currency === 'CNY' || !currency ? '¥' : currency + ' ') + (Math.round(v * 100) / 100);
 }
 function fmtTime(ts) { return ts ? new Date(ts).toLocaleString('zh-CN', { hour12: false }) : '—'; }
+function fmtCount(n) {
+  n = Number(n);
+  if (!isFinite(n)) return '—';
+  if (n >= 100000000) return (n / 100000000).toFixed(1).replace(/\.0$/, '') + ' 亿';
+  if (n >= 10000) return (n / 10000).toFixed(1).replace(/\.0$/, '') + ' 万';
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  return String(n);
+}
 function todayStr() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 
 function toast(msg, type, ms) {
@@ -487,10 +800,21 @@ function debounce(fn, ms) {
 /* ============================================================
  * STORAGE（localStorage 数据 + 迁移 + 损坏保护）
  * ============================================================ */
-function defaultPrice()      { return { current: null, original: null, discountPercent: 0, currency: 'CNY', isOnSale: false, updatedAt: 0 }; }
-function defaultRating()     { return { score: null, positive: null, desc: null, updatedAt: 0 }; }
+function defaultPrice()      { return { current: null, original: null, discountPercent: 0, currency: 'CNY', isOnSale: false, discountExpiration: null, updatedAt: 0 }; }
+function defaultRating()     { return { score: null, positive: null, desc: null, total: null, updatedAt: 0 }; }
 function defaultLow()        { return { price: null, count: null, confidence: 'pending', source: null, updatedAt: 0 }; }
-function defaultDetails()    { return { headerImage: null, isFree: false, type: null, releaseDate: '', developers: [], publishers: [], platforms: [], categories: [], tags: [], metacritic: null, chineseSupport: false, description: '' }; }
+function defaultDetails()    {
+  return {
+    headerImage: null, isFree: false, type: null, releaseDate: '', releaseTs: null,
+    developers: [], publishers: [], platforms: [],
+    categories: [],      // Steam categories（特征：单人/多人/成就/手柄…）
+    genres: [],          // Steam genres（类型：动作/角色扮演/策略…）
+    tags: [],            // 兼容旧字段（= genres）
+    featureTags: [],     // 中文「游戏特色」
+    metacritic: null, chineseSupport: false, reviewTotal: null,
+    description: '', descriptionOriginal: '', descriptionTranslated: false
+  };
+}
 
 function newGame(appid, name, originalName) {
   return {
@@ -552,8 +876,10 @@ function loadData() {
   const oldVer = data.version || 0;
   let hasOldDlcKind = false;
   STATE.games = data.games.map(g => {
-    const base = newGame(g.appid, g.name, g.originalName);
-    if (!g.appid) return null;
+    if (!g || typeof g !== 'object') return null;
+    const appid = Number(g.appid);
+    if (!isFinite(appid) || appid <= 0) return null;
+    const base = newGame(appid, g.name, g.originalName);
     const merged = Object.assign(base, g, {
       price: Object.assign(defaultPrice(), g.price || {}),
       rating: Object.assign(defaultRating(), g.rating || {}),
@@ -566,6 +892,14 @@ function loadData() {
       updatedAt: g.updatedAt || nowMs()
     });
     merged.appid = Number(merged.appid);
+    // 老数据补齐新标签字段：genres 缺失时用旧 tags 顶替，避免「类别」列空白
+    if (!Array.isArray(merged.details.genres) || !merged.details.genres.length) {
+      merged.details.genres = Array.isArray(merged.details.tags) ? merged.details.tags.slice() : [];
+    }
+    if (!Array.isArray(merged.details.featureTags)) merged.details.featureTags = [];
+    if (!Array.isArray(merged.details.categories)) merged.details.categories = [];
+    if (!Array.isArray(merged.details.platforms)) merged.details.platforms = [];
+    merged.details.tags = merged.details.genres.slice(0, 8);
     merged.dlcList = merged.dlcList.map(d => {
       if (!d.kind) hasOldDlcKind = true;
       return Object.assign({ appid: null, name: '', price: null, shortDescription: '', description: '', kind: '', type: '', originalDescription: '', translated: false, updatedAt: 0 }, d);
@@ -590,7 +924,19 @@ const saveData = debounce(() => {
 }, 400);
 
 function loadFilters() {
-  try { Object.assign(STATE.filters, JSON.parse(localStorage.getItem(CONFIG.FILTER_KEY) || '{}')); } catch (e) {}
+  try {
+    const saved = JSON.parse(localStorage.getItem(CONFIG.FILTER_KEY) || '{}');
+    Object.assign(STATE.filters, saved || {});
+  } catch (e) {}
+  // 需求 #1 / #4：恢复标签类别与系列分组偏好
+  // 问题 #2：系列分组只有「用户显式开启过」才是开。默认关、缺失也当关，
+  // 这样录入新游戏 / 刷新页面都不会把开关顶开。
+  try {
+    const tk = localStorage.getItem('sw_tagkind_v3');
+    if (tk && TAG_KINDS.some(k => k.key === tk)) STATE.tagKind = tk;
+    const gp = localStorage.getItem('sw_group_v3');
+    STATE.groupBySeries = (gp === '1');      // 只有明确的 '1' 才展开，其余一律平铺
+  } catch (e) {}
 }
 const saveFilters = debounce(() => {
   try { localStorage.setItem(CONFIG.FILTER_KEY, JSON.stringify(STATE.filters)); } catch (e) {}
@@ -617,18 +963,38 @@ const steamLimiter = new RateLimiter(CONFIG.STEAM_INTERVAL);
 
 /* ============================================================
  * API 统一请求层
- *  proxyFetch：用户自定义代理 → 直连 → allorigins → corsproxy → thingproxy
+ *  proxyFetch：用户自定义代理 → 直连；非敏感请求再走公共代理
  *  任何一级失败自动尝试下一级；全程记录调试日志；绝不抛出未处理异常。
  * ============================================================ */
 function dbgPush(entry) {
   STATE.debugLog.unshift(Object.assign({ time: nowMs() }, entry));
   if (STATE.debugLog.length > 80) STATE.debugLog.length = 80;
 }
-function shortUrl(u) { return String(u).slice(0, 90); }
+function shortUrl(u) {
+  return String(u).replace(/([?&](?:key|api[_-]?key|token|access_token|password|secret)=)[^&#]*/gi, '$1[REDACTED]').slice(0, 90);
+}
+
+/* ------------------------------------------------------------
+ * 超时 / 取消 的区分（修复 #5 的核心）
+ * 旧实现把「用户取消」和「单个通道超时」混用同一个 AbortController：
+ *   allorigins 挂满 12s → 超时 abort → 抛出的 AbortError 被上层
+ *   当成"用户点了取消"→ 通道链直接中断，后面的 corsproxy / codetabs
+ *   等通道一个都不再尝试 → 该游戏整条被跳过（表现为"任务卡死后被跳过"）。
+ * 现在：超时抛 TimeoutError（可继续下一个通道），只有外部 signal
+ *       真的被 abort 才抛 AbortError（真正中断整条链）。
+ * ------------------------------------------------------------ */
+function isAbortErr(e) {
+  if (!e) return false;
+  if (e.name === 'TimeoutError') return false;   // 通道超时不算"用户取消"
+  if (e.name === 'AbortError') return true;
+  return /aborted|canceled|已取消/i.test(String(e.message || ''));
+}
+function timeoutError(ms, url) {
+  return Object.assign(new Error('通道超时（' + ms + 'ms）：' + shortUrl(url)), { name: 'TimeoutError' });
+}
 
 async function fetchWithTimeout(url, options, timeoutMs) {
   const ctrl = new AbortController();
-  // 透传外部 signal + 自建超时 signal：任一触发都立即中断
   const external = options && options.signal;
   let onAbort;
   if (external) {
@@ -636,9 +1002,15 @@ async function fetchWithTimeout(url, options, timeoutMs) {
     else onAbort = () => ctrl.abort();
     external.addEventListener('abort', onAbort);
   }
-  const t = setTimeout(() => ctrl.abort(), timeoutMs || STATE.settings.timeoutMs || 12000);
+  const ms = timeoutMs || STATE.settings.timeoutMs || 12000;
+  let timedOut = false;
+  const t = setTimeout(() => { timedOut = true; ctrl.abort(); }, ms);
   try {
     return await fetch(url, Object.assign({}, options || {}, { signal: ctrl.signal }));
+  } catch (e) {
+    // 如果不是外部取消、而是我们自己超时 → 转为 TimeoutError，让通道链继续尝试下一家
+    if (timedOut && !(external && external.aborted)) throw timeoutError(ms, url);
+    throw e;
   } finally {
     clearTimeout(t);
     if (external && onAbort) external.removeEventListener('abort', onAbort);
@@ -655,8 +1027,8 @@ async function fetchWithRetry(url, options, retries) {
     try { return await fetchWithTimeout(url, options); }
     catch (e) {
       lastErr = e;
-      // AbortError 不重试，立刻抛出
-      if (e && (e.name === 'AbortError' || /aborted|canceled/i.test(String(e.message || '')))) throw e;
+      // 用户取消不重试；通道超时可重试
+      if (isAbortErr(e)) throw e;
       if (i < (retries || 0)) await sleep(350);
     }
   }
@@ -664,6 +1036,12 @@ async function fetchWithRetry(url, options, retries) {
 }
 
 let lastGoodProxy = null;   // 通道粘性：记住上次成功的公共代理，下次优先使用，避免每次都从头失败一遍
+const badProxies = {};      // 记录各通道连续失败次数，失败多的下次直接用短超时跳过
+
+/* 单个公共通道的超时上限：公共代理经常半死不活，
+   给它们各自一个短超时，宁可快速换下一家，也不要一个通道吃满 12s */
+const PROXY_TIMEOUT_MS = 6500;
+const PROXY_TIMEOUT_FAST = 3500;   // 已经知道不可用的通道，给更短的超时快速跳过
 
 async function proxyFetch(url, options) {
   options = options || {};
@@ -672,7 +1050,9 @@ async function proxyFetch(url, options) {
     chain.push({ name: '自定义代理', build: u => STATE.settings.customProxy + encodeURIComponent(u) });
   }
   chain.push({ name: '直连', build: u => u });
-  if (STATE.settings.usePublicProxies) {
+  // 带密钥的请求只走直连/用户自定义代理，避免 API Key 泄露给公共代理。
+  const usePublicProxies = STATE.settings.usePublicProxies && !(options && options.private);
+  if (usePublicProxies) {
     const names = Object.keys(CONFIG.PROXY_BUILDERS);
     if (lastGoodProxy && names.indexOf(lastGoodProxy) !== -1) {
       names.splice(names.indexOf(lastGoodProxy), 1);
@@ -685,14 +1065,21 @@ async function proxyFetch(url, options) {
   }
   let lastErr = null;
   for (const node of chain) {
-    // 已在外部取消，立即跳出通道链
+    // 只有"用户真的取消"才中断整条通道链
     if (options && options.signal && options.signal.aborted) {
       throw Object.assign(new Error('请求已取消'), { name: 'AbortError' });
     }
     const t0 = nowMs();
+    // 之前已经失败过的通道，这次给更短超时（半死的代理不必再等满 6.5s）
+    const knownBad = badProxies[node.name] || 0;
+    let timeout;
+    if (node.name === '直连') timeout = 6000;
+    else if (node.name === '自定义代理') timeout = (STATE.settings.timeoutMs || 12000);
+    else timeout = knownBad >= 2 ? PROXY_TIMEOUT_FAST : PROXY_TIMEOUT_MS;
+    if (knownBad < 2 && options && options.fastTimeout && node.name !== '直连' && node.name !== '自定义代理') {
+      timeout = PROXY_TIMEOUT_FAST;   // 搜索这类"要发两遍"的请求统一走快超时
+    }
     try {
-      // 直连给短超时（CORS 失败本来就立刻报错，超时只兜底挂起情况）；每个通道只试一次，通道链即重试
-      const timeout = node.name === '直连' ? 6000 : (options && options.timeoutMs) || undefined;
       const resp = await fetchWithTimeout(node.build(url), options, timeout);
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       let text = await resp.text();
@@ -701,14 +1088,20 @@ async function proxyFetch(url, options) {
         text = j.contents;
         if (text == null) throw new Error('通道返回空内容');
       }
-      if (node.name !== '直连' && node.name !== '自定义代理') lastGoodProxy = node.name;
+      if (node.name !== '直连' && node.name !== '自定义代理') {
+        lastGoodProxy = node.name;
+        badProxies[node.name] = 0;
+      }
       dbgPush({ ok: true, via: node.name, url: shortUrl(url), ms: nowMs() - t0, size: text.length });
       return text;
     } catch (e) {
-      // 中断错误不再继续尝试下一通道
-      if (e && (e.name === 'AbortError' || /aborted|canceled/i.test(String(e.message || '')))) throw e;
+      // 用户中断才向上抛；通道超时只是"这家不行"，继续试下一家（修复 #5）
+      if (isAbortErr(e) && options && options.signal && options.signal.aborted) throw e;
       lastErr = e;
+      badProxies[node.name] = (badProxies[node.name] || 0) + 1;
       dbgPush({ ok: false, via: node.name, url: shortUrl(url), ms: nowMs() - t0, err: String(e.message || e) });
+      // 换通道前稍等，避免瞬时把请求全打出去
+      if (chain.indexOf(node) < chain.length - 1) await sleep(120);
     }
   }
   throw new Error('所有请求通道均失败（' + shortUrl(url) + '）。若持续失败，请在「⚙️ 设置」里配置自定义代理：' + (lastErr ? lastErr.message : '未知错误'));
@@ -724,13 +1117,79 @@ async function getText(url, options) { return proxyFetch(url, options); }
 /* ============================================================
  * STEAM API
  * ============================================================ */
-async function steamSearch(term, opts) {
+async function steamSearchOnce(term, lang, opts) {
   await steamLimiter.wait();
   // 限速等待期间如果已被取消，立即抛出
   if (opts && opts.signal && opts.signal.aborted) throw Object.assign(new Error('请求已取消'), { name: 'AbortError' });
-  const url = 'https://store.steampowered.com/api/storesearch/?term=' + encodeURIComponent(term) + '&l=schinese&cc=CN';
+  const url = 'https://store.steampowered.com/api/storesearch/?term=' + encodeURIComponent(term) +
+              '&l=' + (lang || 'schinese') + '&cc=CN';
   const data = await getJSON(url, opts || {});
   return Array.isArray(data && data.items) ? data.items : [];
+}
+
+/* ------------------------------------------------------------
+ * 搜索（修复 #3）
+ * 旧实现的三个问题：
+ *   a) 只在 schinese 语言下搜一次，Steam 的 /api/storesearch 只按
+ *      "当前语言下的显示名"匹配，所以用英文名找有中文名的游戏时
+ *      经常一个结果都搜不到（接口本身不返回中文别名）；
+ *   b) 输入中文时同理，中文词在英文索引里匹配不到；
+ *   c) 结果里只有 Steam 当前语言的名称，没有中文名可比对。
+ * 现在：中文词与英文词都搜两种语言后合并去重。
+ * 为了控制耗时：先搜最可能命中的语言，拿到结果后若已足够可信就不再搜第二种。
+ * ------------------------------------------------------------ */
+async function steamSearch(term, opts) {
+  const t = String(term || '').trim();
+  if (!t) return [];
+  const cnTerm = hasChinese(t);
+  // 中文词优先 schinese；英文词优先 english（英文索引对它命中率更高）
+  const first = cnTerm ? 'schinese' : 'english';
+  const second = cnTerm ? 'english' : 'schinese';
+  const searchOpts = Object.assign({}, opts || {}, { fastTimeout: true });
+
+  const firstItems = await steamSearchOnce(t, first, searchOpts).catch(e => {
+    if (isAbortErr(e) && opts && opts.signal && opts.signal.aborted) throw e;
+    return [];
+  });
+  if (opts && opts.signal && opts.signal.aborted) throw Object.assign(new Error('请求已取消'), { name: 'AbortError' });
+
+  // 第一种语言就有结果 → 追加第二种语言用于合并（覆盖"中英文名差异大"的游戏），
+  // 但仍受总时长约束；失败也不影响已拿到的结果。
+  let secondItems = [];
+  if (firstItems.length) {
+    try { secondItems = await steamSearchOnce(t, second, searchOpts); }
+    catch (e) { secondItems = []; }
+  } else {
+    // 第一种语言没结果，第二种语言是最后的机会
+    try { secondItems = await steamSearchOnce(t, second, searchOpts); }
+    catch (e) { secondItems = []; }
+  }
+  const results = [firstItems, secondItems];
+  // 合并去重：同一 AppID 优先保留带中文名的那个结果
+  const map = new Map();
+  results.forEach(list => {
+    (list || []).forEach(it => {
+      if (!it || it.id == null) return;
+      const key = String(it.id);
+      const prev = map.get(key);
+      if (!prev) { map.set(key, it); return; }
+      const prevCn = hasChinese(prev.name);
+      const curCn = hasChinese(it.name);
+      if (curCn && !prevCn) map.set(key, it);
+    });
+  });
+  const items = Array.from(map.values());
+  // 相关性排序：完全相等 > 前缀命中 > 包含命中，其余保持 Steam 原序
+  const lc = t.toLowerCase();
+  const rank = it => {
+    const n = String(it.name || '').toLowerCase();
+    if (n === lc) return 0;
+    if (n.indexOf(lc) === 0) return 1;
+    if (n.indexOf(lc) !== -1) return 2;
+    return 3;
+  };
+  items.sort((a, b) => rank(a) - rank(b));
+  return items;
 }
 
 async function steamAppDetails(appid, opts) {
@@ -771,21 +1230,79 @@ async function steamGetWishlist(steamid, opts) {
 /* ============================================================
  * TRANSLATION（免费 Google 翻译接口，经代理层，带本地缓存）
  * ============================================================ */
+/* ------------------------------------------------------------
+ * 翻译（修复 #2）
+ * 旧实现的问题：
+ *   a) 只要原文里有任意一个中文字符就直接 return null → 大量
+ *      "中英混排"的简介被判定为已中文，英文整段原样显示；
+ *   b) 翻译请求失败就静默保留英文，没有任何兜底。
+ * 现在：用 isMostlyChinese() 判断是否"真的已经是中文"，不满足就翻译；
+ *       翻译接口本身就带兜底通道（Google → MyMemory → 词典接口），
+ *       详见 translateText 下方的多通道实现。
+ * ------------------------------------------------------------ */
+function isMostlyChinese(s) {
+  s = String(s || '').trim();
+  if (!s) return false;
+  const cn = (s.match(/[\u4e00-\u9fff]/g) || []).length;
+  const en = (s.match(/[A-Za-z]/g) || []).length;
+  if (cn === 0) return false;
+  // 中文字数不少于字母数，且中文字数达到一定量，才算"已是中文"
+  return cn >= en && cn >= 4;
+}
+/* 译文是否可接受：必须含中文，且不能是原封不动返回的英文 */
+function isUsableTranslation(out, src) {
+  out = String(out || '').trim();
+  if (!out) return false;
+  if (!/[\u4e00-\u9fff]/.test(out)) return false;
+  if (out === String(src || '').trim()) return false;
+  return true;
+}
+
+async function translateViaGoogle(text, opts) {
+  const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' +
+              encodeURIComponent(text.slice(0, 900));
+  const data = await getJSON(url, opts || {});
+  const out = Array.isArray(data) && Array.isArray(data[0])
+    ? data[0].map(seg => (seg && seg[0]) || '').join('')
+    : null;
+  return out ? out.trim() : null;
+}
+
+async function translateViaMyMemory(text, opts) {
+  const url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text.slice(0, 480)) + '&langpair=auto|zh-CN';
+  const data = await getJSON(url, opts || {});
+  const out = data && data.responseData && data.responseData.translatedText;
+  if (!out) return null;
+  // MyMemory 失败时会回显原文并带提示
+  if (/MYMEMORY WARNING|QUERY LENGTH LIMIT/i.test(out)) return null;
+  return String(out).trim();
+}
+
 async function translateText(text, opts) {
   text = String(text || '').trim();
   if (!text) return null;
-  if (hasChinese(text)) return null;
-  const key = text.slice(0, 160);
+  if (isMostlyChinese(text)) return null;          // 真的已是中文，无需翻译
+  const key = text;
   if (STATE.transCache[key]) return STATE.transCache[key];
-  // 已取消：直接返回 null，不发请求
   if (opts && opts.signal && opts.signal.aborted) return null;
-  const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(text.slice(0, 900));
-  const data = await getJSON(url, opts || {});
-  const out = Array.isArray(data) && Array.isArray(data[0]) ? data[0].map(seg => (seg && seg[0]) || '').join('') : null;
-  if (out && out.trim()) {
-    STATE.transCache[key] = out.trim();
-    saveTransCache();
-    return out.trim();
+
+  const channels = [
+    ['google', translateViaGoogle],
+    ['mymemory', translateViaMyMemory]
+  ];
+  for (const [name, fn] of channels) {
+    if (opts && opts.signal && opts.signal.aborted) return null;
+    try {
+      const out = await fn(text, opts);
+      if (isUsableTranslation(out, text)) {
+        STATE.transCache[key] = out;
+        saveTransCache();
+        return out;
+      }
+    } catch (e) {
+      if (isAbortErr(e)) return null;
+      dbgPush({ ok: false, via: '翻译-' + name, url: key.slice(0, 40), err: String(e.message || e) });
+    }
   }
   return null;
 }
@@ -795,68 +1312,94 @@ async function translateText(text, opts) {
  *  若官方接口结构变化，只需修改本层。
  *  无 Key 时返回 { skipped:true }（调用方显示"待核"）。
  * ============================================================ */
+function itadPriceInfo(value) {
+  if (value == null) return null;
+  if (typeof value === 'number') return isFinite(value) ? { price: value, currency: null } : null;
+  if (typeof value !== 'object') return null;
+  if (typeof value.amount === 'number') return { price: value.amount, currency: value.currency || null };
+  if (typeof value.amountInt === 'number') return { price: value.amountInt / 100, currency: value.currency || null };
+  if (typeof value.price === 'number') return { price: value.price, currency: value.currency || null };
+  if (value.price && typeof value.price === 'object') return itadPriceInfo(value.price);
+  return null;
+}
+function itadEntryPrice(it) {
+  if (!it) return null;
+  return itadPriceInfo(it.deal && it.deal.price) ||
+    itadPriceInfo(it.low && it.low.price) ||
+    itadPriceInfo(it.lowest && it.lowest.price) ||
+    itadPriceInfo(it.price) ||
+    itadPriceInfo(typeof it.amount === 'number' ? it : null);
+}
 function parseItadLow(d) {
-  // 兼容 history v2（数组 / {data:[]}）与 overview（{lowest:{...}}）两种结构
-  let list = null;
-  if (Array.isArray(d)) list = d;
-  else if (d && Array.isArray(d.data)) list = d.data;
-  if (list && list.length) {
-    let low = Infinity, currency = 'CNY';
-    const priceOf = it => {
-      if (!it) return null;
-      if (it.price && typeof it.price === 'object') {
-        if (typeof it.price.amount === 'number') return it.price.amount / 100; // amount 为分
-        if (typeof it.price.price === 'number') return it.price.price;
-      }
-      if (typeof it.price_new === 'number') return it.price_new;
-      if (typeof it.price_old === 'number') return it.price_old;
-      return null;
+  let entries = [];
+  if (Array.isArray(d)) entries = d;
+  else if (d && Array.isArray(d.prices)) entries = d.prices;
+  else if (d && Array.isArray(d.data)) entries = d.data;
+
+  const rows = [];
+  entries.forEach(it => {
+    if (it && Array.isArray(it.lows)) it.lows.forEach(low => rows.push(low));
+    else rows.push(it);
+  });
+
+  const prices = [];
+  let low = Infinity, currency = null;
+  rows.forEach(it => {
+    const info = itadEntryPrice(it);
+    if (!info || !isFinite(info.price) || info.price < 0) return;
+    prices.push(info.price);
+    if (info.price < low) { low = info.price; currency = info.currency || currency; }
+  });
+  if (isFinite(low)) {
+    return {
+      price: low,
+      count: prices.filter(p => p <= low * 1.02).length,
+      currency: currency || 'CNY'
     };
-    for (const it of list) {
-      const p = priceOf(it);
-      if (p != null && p < low) { low = p; if (it.price && it.price.currency) currency = it.price.currency; }
-    }
-    if (isFinite(low)) {
-      let count = 0;
-      for (const it of list) { const p = priceOf(it); if (p != null && p <= low * 1.02) count++; }
-      return { price: low, count: count, currency: currency };
-    }
   }
+
   if (d && d.lowest) {
-    const L = d.lowest;
-    const p = (typeof L.price === 'number') ? L.price : (L.price && typeof L.price.amount === 'number' ? L.price.amount / 100 : null);
-    if (p != null) return { price: p, count: L.times || null, currency: (L.price && L.price.currency) || 'CNY' };
+    const info = itadPriceInfo(d.lowest.price) || itadPriceInfo(d.lowest);
+    if (info && isFinite(info.price)) {
+      return {
+        price: info.price,
+        count: d.lowest.times != null ? d.lowest.times : null,
+        currency: info.currency || 'CNY'
+      };
+    }
   }
   return null;
+}
+
+async function itadLookupGameId(appid, opts) {
+  const key = STATE.settings.itadKey;
+  const url = 'https://api.isthereanydeal.com/games/lookup/v1?key=' + encodeURIComponent(key) +
+    '&appid=' + encodeURIComponent(appid);
+  const d = await getJSON(url, opts || {});
+  if (!d || !d.found || !d.game || !d.game.id) throw new Error('ITAD 未找到 AppID ' + appid + ' 对应的游戏');
+  return d.game.id;
 }
 
 async function itadGetHistoryLow(appid, opts) {
   const key = STATE.settings.itadKey;
   if (!key) return { skipped: true };
   if (opts && opts.signal && opts.signal.aborted) throw Object.assign(new Error('请求已取消'), { name: 'AbortError' });
-  const urls = [
-    'https://api.isthereanydeal.com/games/history/v2?key=' + encodeURIComponent(key) + '&country=CN&shops=61&apps=' + appid,
-    'https://api.isthereanydeal.com/game/overview/v2?appid=' + appid + '&key=' + encodeURIComponent(key) + '&country=CN'
-  ];
-  let lastErr = null;
-  for (const u of urls) {
-    try {
-      const d = await getJSON(u, opts || {});
-      const low = parseItadLow(d);
-      if (low) return {
-        price: low.price, count: low.count, currency: low.currency,
-        confidence: 'A', source: 'ITAD(国区)', updatedAt: nowMs()
-      };
-      lastErr = new Error('ITAD 未返回该游戏的历史数据');
-    } catch (e) {
-      // 中断错误立刻向上抛
-      if (e && (e.name === 'AbortError' || /aborted|canceled/i.test(String(e.message || '')))) throw e;
-      lastErr = e;
-    }
-  }
-  throw lastErr || new Error('ITAD 请求失败');
-}
 
+  // ITAD v2 的 history 接口需要 UUID（不是 Steam AppID），先 lookup 再查历史。
+  // private 会根据用户设置阻止请求经过公共 CORS 代理，默认避免把 API Key 发给第三方。
+  const requestOpts = Object.assign({}, opts || {}, { private: !STATE.settings.itadAllowPublicProxy });
+  const gameId = await itadLookupGameId(appid, requestOpts);
+  const url = 'https://api.isthereanydeal.com/games/history/v2?key=' + encodeURIComponent(key) +
+    '&id=' + encodeURIComponent(gameId) +
+    '&country=CN&shops=61&since=' + encodeURIComponent('2000-01-01T00:00:00Z');
+  const d = await getJSON(url, requestOpts);
+  const low = parseItadLow(d);
+  if (!low) throw new Error('ITAD 未返回该游戏的历史数据');
+  return {
+    price: low.price, count: low.count, currency: low.currency,
+    confidence: 'A', source: 'ITAD(国区)', updatedAt: nowMs()
+  };
+}
 /* ============================================================
  * DATA NORMALIZER
  * ============================================================ */
@@ -880,16 +1423,64 @@ function extractPrice(data, priceObj) {
   const out = defaultPrice();
   if (data && data.is_free) {
     out.current = 0; out.original = 0; out.discountPercent = 0; out.isOnSale = false;
+    out.discountExpiration = null;
   } else if (priceObj) {
     out.current = priceObj.final / 100;
     out.original = priceObj.initial / 100;
     out.discountPercent = Number(priceObj.discount_percent) || 0;   // 官方折扣字段
     out.currency = priceObj.currency || 'CNY';
     out.isOnSale = out.discountPercent > 0;
+    // 折扣截止时间（官方字段，Unix 秒）。无折扣或字段缺失时保持 null，绝不编造。
+    const exp = Number(priceObj.discount_expiration);
+    out.discountExpiration = (out.isOnSale && exp > 0) ? exp * 1000 : null;
   }
   // priceObj 缺失且非免费：保持 null（显示"待核"，绝不编造）
   out.updatedAt = nowMs();
   return out;
+}
+
+/* ------------------------------------------------------------
+ * 折扣剩余时间（修复需求 #2：折扣截止时间）
+ *   官方 discount_expiration 为 Unix 秒 → 换算成本地时间展示。
+ *   提供「剩余 X 天 Y 小时」倒计时，并标记「即将结束」（≤24h）。
+ *   字段缺失时返回 null，调用方显示"—"，绝不编造。
+ * ------------------------------------------------------------ */
+function saleRemainMs(g) {
+  const expMs = toTimestampMs(g && g.price && g.price.discountExpiration);
+  return expMs == null ? null : expMs - nowMs();
+}
+function fmtDeadline(exp) {
+  const expMs = toTimestampMs(exp);
+  if (expMs == null) return null;
+  const d = new Date(expMs);
+  const p = n => String(n).padStart(2, '0');
+  return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function fmtRemain(ms) {
+  if (ms == null) return null;
+  if (ms <= 0) return '已结束';
+  const mins = Math.floor(ms / 60000);
+  const days = Math.floor(mins / 1440);
+  const hours = Math.floor((mins % 1440) / 60);
+  const m = mins % 60;
+  if (days > 0) return days + ' 天' + (hours > 0 ? ' ' + hours + ' 小时' : '');
+  if (hours > 0) return hours + ' 小时' + (m > 0 ? ' ' + m + ' 分' : '');
+  return Math.max(1, m) + ' 分钟';
+}
+/* 折扣截止单元格：有折扣且有截止时间才展示 */
+function deadlineCellHtml(g) {
+  if (!(g.price && g.price.isOnSale)) return '<span style="color:var(--muted)">—</span>';
+  const exp = g.price.discountExpiration;
+  const expMs = toTimestampMs(exp);
+  if (expMs == null) return '<span style="color:var(--muted)" title="Steam 未返回该游戏的折扣截止时间">未知</span>';
+  const ms = expMs - nowMs();
+  const end = ms <= 0;
+  const soon = !end && ms <= 24 * 3600 * 1000;
+  const cls = end ? 'low-pending' : (soon ? 'sale-soon' : 'sale-ok');
+  const label = end ? '已结束' : fmtRemain(ms);
+  return '<span class="' + cls + '" title="截止：' + esc(fmtDeadline(expMs)) + '（' + esc(fmtTime(expMs)) + '）">' +
+    esc(label) + (soon ? ' ⚠️' : '') + '</span>' +
+    '<br><small style="color:var(--muted)">' + esc(fmtDeadline(exp)) + '</small>';
 }
 
 function extractDetails(data) {
@@ -899,18 +1490,84 @@ function extractDetails(data) {
   d.isFree = !!data.is_free;
   d.type = data.type || null;
   d.releaseDate = (data.release_date && data.release_date.date) || '';
+  d.releaseTs = (data.release_date && data.release_date.steam) ? data.release_date.steam : null;
   d.developers = Array.isArray(data.developers) ? data.developers : [];
   d.publishers = Array.isArray(data.publishers) ? data.publishers : [];
   const p = data.platforms || {};
   d.platforms = [p.windows && 'Windows', p.mac && 'macOS', p.linux && 'Linux'].filter(Boolean);
-  d.categories = Array.isArray(data.categories) ? data.categories.map(c => c.description) : [];
-  d.tags = (Array.isArray(data.genres) ? data.genres.map(g => g.description) : []).slice(0, 8);
+  d.categories = Array.isArray(data.categories) ? data.categories.map(c => c.description).filter(Boolean) : [];
+  d.genres = Array.isArray(data.genres) ? data.genres.map(g => g.description).filter(Boolean) : [];
+  d.tags = d.genres.slice(0, 8);            // 兼容旧字段与旧表格渲染
+  d.featureTags = buildFeatureTags(data);    // 中文「游戏特色」派生标签
   d.metacritic = data.metacritic && typeof data.metacritic.score === 'number' ? data.metacritic.score : null;
+  d.reviewTotal = (data.recommendations && Number(data.recommendations.total)) || null;
   const langs = String(data.supported_languages || '');
   d.chineseSupport = langs.indexOf('简体中文') !== -1 || langs.indexOf('Simplified Chinese') !== -1;
-  d.description = stripHtml(data.short_description || '');
-  if (!d.description) d.description = clampText(stripHtml(data.about_the_game || ''), 200);
+  // 简介原文优先短简介，再退到 about_the_game
+  d.descriptionOriginal = stripHtml(data.short_description || '') || clampText(stripHtml(data.about_the_game || ''), 300);
+  d.description = d.descriptionOriginal;
+  d.descriptionTranslated = false;
   return d;
+}
+
+/* ------------------------------------------------------------
+ * 游戏特色（需求 #1）：由官方字段派生「可读的中文特征标签」
+ *   只做「有 / 无」的客观派生，不编造游戏内容。
+ * ------------------------------------------------------------ */
+const FEATURE_RULES = [
+  { key: '单人',       test: /单人|Single-player/i },
+  { key: '多人',       test: /多人|Multi-player/i },
+  { key: '联机合作',   test: /合作|Co-op/i },
+  { key: '在线对战',   test: /PvP|对战|竞速/i },
+  { key: '本地同屏',   test: /本地合作|共享\/分屏|Shared\/Splitscreen|Remote Play/i },
+  { key: '成就',       test: /成就|Achievements/i },
+  { key: '集换式卡牌', test: /集换式卡牌|Trading Cards/i },
+  { key: '云存档',     test: /Steam 云|Steam Cloud/i },
+  { key: '手柄支持',   test: /手柄|Controller/i },
+  { key: '创意工坊',   test: /创意工坊|Workshop/i },
+  { key: '关卡编辑',   test: /关卡编辑器|Level Editor|编辑器/i },
+  { key: 'VR 支持',    test: /VR/i },
+  { key: '家庭共享',   test: /家庭共享|Family Sharing/i },
+];
+function buildFeatureTags(data) {
+  const out = [];
+  const cat = (data.categories || []).map(c => c.description).join(' | ');
+  const cats = (data.categories || []).map(c => c.description);
+  for (const r of FEATURE_RULES) {
+    // 优先按 category 精确名匹配，其次整体文本
+    if (cats.some(c => r.test.test(c)) || r.test.test(cat)) out.push(r.key);
+  }
+  return out;
+}
+
+/* 标签类别（需求 #1）：表格「类别」列可切换查看不同类别的标签 */
+const TAG_KINDS = [
+  { key: 'genre',    label: '类型' },
+  { key: 'feature',  label: '特色' },
+  { key: 'category', label: '功能' },
+  { key: 'platform', label: '平台' },
+];
+function tagsOfKind(g, kind) {
+  const d = (g && g.details) || {};
+  switch (kind) {
+    case 'genre':    return d.genres || d.tags || [];
+    case 'feature':  return d.featureTags || [];
+    case 'category': return d.categories || [];
+    case 'platform': return d.platforms || [];
+  }
+  return [];
+}
+
+/* 简介中文化：Steam 有官方中文就直用，否则机翻（修复 #2） */
+async function ensureChineseDescription(details, opts) {
+  try {
+    const src = details.descriptionOriginal || details.description || '';
+    if (!src) return;
+    if (isMostlyChinese(src)) { details.description = src; details.descriptionTranslated = false; return; }
+    if (!STATE.settings.autoTranslate) return;
+    const tr = await translateText(src, opts || {});
+    if (tr) { details.description = tr; details.descriptionTranslated = true; }
+  } catch (e) { /* 翻译失败：保留原文，不伪造中文 */ }
 }
 
 // 中文名决策：官方中文名 → （译：xxx）+ 保留英文原名 → 英文原名
@@ -943,8 +1600,333 @@ function getRecommendation(game) {
   return { label: '⚠️ 可入', cls: 'rec-ok', key: 'ok' };
 }
 
+/* ------------------------------------------------------------
+ * 综合性价比（需求 #3：不再只看「史低 ÷ 评分」）
+ *
+ * 旧算法的问题：只看两个因子，导致「便宜但很烂」永远排前面，
+ * 「口碑极好且正处于历史低位」反而排后面。
+ *
+ * 新算法：把可获得的客观指标归一化后加权求和，输出 0~100 分。
+ *   ① 口碑质量（评分 / 好评率）        —— 权重最高，游戏首先得好玩
+ *   ② 价格水位（当前价 ÷ 史低）        —— 现在买是不是接近历史最低
+ *   ③ 绝对价格（当前价，越便宜越友好）  —— 兼顾预算
+ *   ④ 折扣力度（折扣百分比）           —— 促销诚意
+ *   ⑤ 史低出现次数（次数少=更难得）     —— 稀缺性
+ *   ⑥ Metacritic 媒体评分              —— 第三方背书（有才计）
+ *   ⑦ 简体中文支持                     —— 无中文体验打折
+ *   ⑧ 玩家体量（评价总数，对数缩放）    —— 大众验证度
+ *   ⑨ 发售时长（越老越可能继续降）      —— 反向微调
+ * 缺数据的因子按「该因子权重 × 中性值 0.5」折算，并在结果里标注
+ * 覆盖度（coverage），覆盖度低的打分标注「数据待补」，避免误导。
+ * ------------------------------------------------------------ */
+const VALUE_WEIGHTS = {
+  quality:  30,   // 口碑质量
+  water:    22,   // 相对史低水位
+  absolute: 12,   // 绝对价格
+  discount: 12,   // 折扣力度
+  rarity:    8,   // 史低稀缺性
+  meta:      6,   // Metacritic
+  chinese:   5,   // 中文支持
+  pop:       5,   // 玩家体量
+};
+function clamp01(x) { return x < 0 ? 0 : (x > 1 ? 1 : x); }
+
+function computeValueScore(g) {
+  const p = g.price || {}, r = g.rating || {}, lo = g.historicalLow || {}, d = g.details || {};
+  const cur = (p.current != null) ? p.current : null;
+  const low = (lo.price != null) ? lo.price : null;
+  const score = (r.score != null) ? r.score : null;
+  const pos = (r.positive != null) ? r.positive : null;
+  const parts = [];   // {name, norm(0~1), weight, known}
+  const add = (name, norm, weight, known) => parts.push({ name, norm: known ? clamp01(norm) : 0.5, weight, known: !!known });
+
+  // ① 口碑质量：评分(10 分制) 与 好评率 各半；只有其一则取其一
+  const qScore = score != null ? clamp01((score - 5) / 5) : null;          // 5 分→0，10 分→1
+  const qPos = pos != null ? clamp01((pos - 50) / 50) : null;              // 50%→0，100%→1
+  let q = null, qKnown = false;
+  if (qScore != null && qPos != null) { q = qScore * 0.6 + qPos * 0.4; qKnown = true; }
+  else if (qScore != null) { q = qScore; qKnown = true; }
+  else if (qPos != null) { q = qPos; qKnown = true; }
+  add('口碑', q == null ? 0.5 : q, VALUE_WEIGHTS.quality, qKnown);
+
+  // ② 相对史低水位：当前价 / 史低。=1（就是史低）→1 分；≥2.5 倍 →0 分
+  const waterKnown = (cur != null && low != null && low > 0);
+  const ratio = waterKnown ? cur / low : null;
+  const waterNorm = waterKnown ? clamp01((2.5 - ratio) / 1.5) : 0.5;
+  add('史低水位', waterNorm, VALUE_WEIGHTS.water, waterKnown);
+
+  // ③ 绝对价格：≤30 元满分，≥300 元 0 分（对数感更符合直觉）
+  const absKnown = (cur != null);
+  let absNorm = 0.5;
+  if (absKnown) {
+    if (cur <= 0) absNorm = 1;
+    else absNorm = clamp01(1 - Math.log(Math.max(cur, 1) / 30) / Math.log(300 / 30));
+  }
+  add('绝对价格', absNorm, VALUE_WEIGHTS.absolute, absKnown);
+
+  // ④ 折扣力度：0% →0，≥75% →1
+  const discKnown = (p.discountPercent != null);
+  add('折扣力度', discKnown ? (p.discountPercent / 75) : 0.5, VALUE_WEIGHTS.discount, discKnown);
+
+  // ⑤ 史低稀缺性：次数越少越"难得"。1~2 次拉满，≥8 次为 0
+  const cntKnown = (lo.count != null && lo.count > 0);
+  const rarityNorm = cntKnown ? clamp01((8 - lo.count) / 6) : 0.5;
+  add('史低稀缺', rarityNorm, VALUE_WEIGHTS.rarity, cntKnown);
+
+  // ⑥ Metacritic：60 分→0，95 分→1
+  const metaKnown = (d.metacritic != null);
+  add('媒体评分', metaKnown ? ((d.metacritic - 60) / 35) : 0.5, VALUE_WEIGHTS.meta, metaKnown);
+
+  // ⑦ 简体中文
+  const cnKnown = (d.chineseSupport != null);
+  add('中文支持', (d.chineseSupport === true) ? 1 : 0, VALUE_WEIGHTS.chinese, cnKnown);
+
+  // ⑧ 玩家体量：评价数对数缩放，100 →0，100000 →1
+  const popKnown = (r.total != null && r.total > 0);
+  const popNorm = popKnown ? clamp01((Math.log10(Math.max(r.total, 1)) - 2) / 3) : 0.5;
+  add('玩家体量', popNorm, VALUE_WEIGHTS.pop, popKnown);
+
+  const totalW = parts.reduce((s, x) => s + (x.known ? x.weight : 0), 0);
+  const raw = parts.reduce((s, x) => s + x.norm * x.weight, 0);
+  const fullW = parts.reduce((s, x) => s + x.weight, 0);
+  const finalW = totalW > 0 ? totalW : fullW;
+  const score100 = Math.round((raw / fullW) * 100);
+  const coverage = Math.round((totalW / fullW) * 100);
+  return { score: score100, coverage, parts, ratio, hasLow: low != null, hasScore: score != null };
+}
+/* 性价比等级（含未打分情况） */
+function valueGrade(vs) {
+  const s = vs.score;
+  if (s >= 85) return { label: 'S 超值', cls: 'val-s' };
+  if (s >= 75) return { label: 'A 很值', cls: 'val-a' };
+  if (s >= 62) return { label: 'B 尚可', cls: 'val-b' };
+  if (s >= 48) return { label: 'C 一般', cls: 'val-c' };
+  return { label: 'D 偏贵', cls: 'val-d' };
+}
+/* 表格内性价比单元格 */
+function valueCellHtml(g, vs) {
+  vs = vs || computeValueScore(g);
+  const grade = valueGrade(vs);
+  const weak = vs.coverage < 55;
+  return '<span class="val-badge ' + grade.cls + '" title="' +
+    esc('综合 ' + vs.score + ' / 100 · 数据覆盖 ' + vs.coverage + '%\n' +
+        vs.parts.map(x => x.name + '：' + (x.known ? Math.round(x.norm * 100) + '%' : '缺数据(按中性计)')).join('\n')) +
+    '">' + vs.score + ' <small>' + grade.label.split(' ')[0] + '</small>' +
+    (weak ? '<sup title="部分数据待补全">*</sup>' : '') + '</span>';
+}
+function sortValueOfValue(g) {
+  return computeValueScore(g).score;
+}
+
 function isTargetReached(g) {
   return g.targetPrice != null && g.price && g.price.current != null && g.price.current <= g.targetPrice;
+}
+/* 是否正处于史低价（当前价 ≤ 史低 × 1.005，容忍浮点误差） */
+function isAtHistoricalLow(g) {
+  const cur = g.price && g.price.current;
+  const low = g.historicalLow && g.historicalLow.price;
+  if (cur == null || low == null || low <= 0) return false;
+  return cur <= low * 1.005;
+}
+
+/* ============================================================
+ * 系列识别与分组（需求 #4：相关性强 / 系列之作放到一块）
+ *
+ * 判定「同一系列」的三个客观信号（全部来自官方数据，不靠猜）：
+ *   ① 同开发商 且 同发行商；
+ *   ② 游戏名主干（去掉罗马数字/阿拉伯数字/常见后缀）相同；
+ *   ③ 一方名字包含另一方主干（如「全面战争：战锤 3」⊃「全面战争：战锤」）。
+ * 三者取并集，再用「共同词元」避免误并（如两个不同公司的「RPG」）。
+ * 关键：只在 ①②③ 至少满足其一、且词元重合度足够时才归并，
+ *      否则宁可各自独立，不做错误合并。
+ * ============================================================ */
+const SERIES_STOPWORDS = [
+  'the', 'of', 'and', 'a', 'an', 'to', 'in', 'on', 'for', 'with',
+  'edition', 'definitive', 'complete', 'deluxe', 'ultimate', 'gold', 'enhanced',
+  'remaster', 'remastered', 'remake', 'hd', 'goty', 'bundle', 'pack', 'collection',
+  '重制版', '决定版', '终极版', '豪华版', '完全版', '黄金版', '合集', '套装', '增强版',
+  '中文版', '简体中文', '版'
+];
+// 罗马数字 → 阿拉伯数字（用于主干归一）
+const ROMAN_MAP = { i: '1', ii: '2', iii: '3', iv: '4', v: '5', vi: '6', vii: '7', viii: '8', ix: '9', x: '10', xi: '11', xii: '12' };
+
+/* 归一化名字 → 词元数组（去掉版本后缀、数字、副标题分隔符后的词） */
+function nameTokens(name) {
+  let s = String(name || '').toLowerCase();
+  s = s.replace(/[（(【\[][^）)】\]]*[）)】\]]/g, ' ');          // 去掉括号补充说明
+  s = s.replace(/[：:–—\-_/\\|]/g, ' ');                       // 副标题分隔符 → 空格
+  s = s.replace(/[^\w\u4e00-\u9fff\s]/g, ' ');                 // 其他标点 → 空格
+  const raw = s.split(/\s+/).filter(Boolean);
+  const toks = [];
+  raw.forEach(w => {
+    if (/^\d+$/.test(w)) return;                                // 纯数字（代数）丢弃
+    if (ROMAN_MAP[w]) return;                                   // 罗马数字丢弃
+    if (SERIES_STOPWORDS.indexOf(w) !== -1) return;
+    toks.push(w);
+  });
+  return toks;
+}
+/* 主干：去掉副标题（冒号后内容）与代数后缀后的主体名 */
+function nameStem(name) {
+  let s = String(name || '');
+  s = s.replace(/[（(【\[][^）)】\]]*[）)】\]]/g, ' ');
+  s = s.split(/[：:]/)[0];                                     // 只取冒号前的主标题
+  s = s.replace(/\s+[IVX]{1,4}\s*$/i, ' ');                    // 结尾罗马数字
+  s = s.replace(/\s+\d+\s*$/, ' ');                            // 结尾阿拉伯数字
+  s = s.replace(/\b(edition|definitive|complete|deluxe|ultimate|gold|remastered|hd|goty)\b/gi, ' ');
+  return s.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+/* 共同词元数 / 最小词元数 —— 重合度 */
+function tokenOverlap(a, b) {
+  const A = nameTokens(a), B = nameTokens(b);
+  if (!A.length || !B.length) return 0;
+  const setB = new Set(B);
+  const common = A.filter(x => setB.has(x)).length;
+  return common / Math.min(A.length, B.length);
+}
+/* 判断两游戏是否同系列，返回 {same, reason} */
+function isSameSeries(a, b) {
+  if (!a || !b || Number(a.appid) === Number(b.appid)) return { same: false };
+  const da = a.details || {}, db = b.details || {};
+  const sameDev = da.developers && db.developers &&
+    da.developers.length && db.developers.length &&
+    da.developers.some(x => db.developers.indexOf(x) !== -1);
+  const samePub = da.publishers && db.publishers &&
+    da.publishers.length && db.publishers.length &&
+    da.publishers.some(x => db.publishers.indexOf(x) !== -1);
+  const stemA = nameStem(a.name), stemB = nameStem(b.name);
+  const origA = nameStem(a.originalName || a.name), origB = nameStem(b.originalName || b.name);
+  const stemEq = !!stemA && !!stemB && (stemA === stemB || origA === origB);
+  const stemIn = (!!stemA && !!stemB && stemA.length >= 4 && stemB.length >= 4) &&
+    (stemA.indexOf(stemB) !== -1 || stemB.indexOf(stemA) !== -1);
+  const ov = Math.max(tokenOverlap(a.name, b.name), tokenOverlap(a.originalName || a.name, b.originalName || b.name));
+
+  // 名字主干完全一致 → 强信号
+  if (stemEq) return { same: true, reason: '同名主干' };
+  // 名字主干互相包含 + 同厂商（或至少一个厂商相同）→ 系列
+  if (stemIn && (sameDev || samePub)) return { same: true, reason: '主干包含' };
+  // 词元重合度很高 + 同开发商 → 系列（覆盖「战锤：全面战争 2 / 3」这类）
+  if (ov >= 0.6 && sameDev) return { same: true, reason: '词元重合' };
+  // 词元完全重合（≥2 个词元）+ 同发行商
+  if (ov >= 0.75 && samePub) return { same: true, reason: '词元重合' };
+  return { same: false };
+}
+/* 把整份愿望单划分为系列分组
+ * 返回：Map<groupId, {id, games:[...], label}>，未归组的各自成组（size=1，不显示组标题）
+ * 性能优化：用「开发商 / 发行商 / 名称主干 / 词元签名」建倒排候选集，
+ *          只对可能同系列的游戏两两比较，把 O(n²) 降到接近 O(n·k)。
+ *          大清单（数百条）下这是渲染不卡的关键。 */
+function buildSeriesGroups(games) {
+  const parent = {};
+  const find = x => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
+  const union = (x, y) => { const rx = find(x), ry = find(y); if (rx !== ry) parent[rx] = ry; };
+  games.forEach(g => { parent[g.appid] = g.appid; });
+
+  // ---- 建倒排索引：key -> [appid...] ----
+  const idxDev = new Map(), idxPub = new Map(), idxStem = new Map(), idxTok = new Map();
+  const push = (map, key, appid) => {
+    if (!key) return;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(appid);
+  };
+  const byId = new Map();
+  games.forEach(g => {
+    byId.set(g.appid, g);
+    const d = g.details || {};
+    (d.developers || []).forEach(x => push(idxDev, String(x).toLowerCase(), g.appid));
+    (d.publishers || []).forEach(x => push(idxPub, String(x).toLowerCase(), g.appid));
+    const sa = nameStem(g.name), sb = nameStem(g.originalName || g.name);
+    if (sa) push(idxStem, sa, g.appid);
+    if (sb) push(idxStem, sb, g.appid);
+    // 词元签名：用「最短词元」bucket，冲突面小
+    const toks = nameTokens((g.originalName || g.name)).concat(nameTokens(g.name));
+    toks.forEach(t => { if (t.length >= 3) push(idxTok, t, g.appid); });
+  });
+
+  // ---- 收集候选对（同一 bucket 内的两两组合） ----
+  const seen = new Set();
+  const tryPair = (a, b) => {
+    if (a === b) return;
+    const key = a < b ? a + '|' + b : b + '|' + a;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const ga = byId.get(a), gb = byId.get(b);
+    if (!ga || !gb) return;
+    if (isSameSeries(ga, gb).same) union(a, b);
+  };
+  const scanBucket = (arr) => {
+    if (!arr || arr.length < 2) return;
+    if (arr.length > 120) return;   // 超大桶（如某个热门发行商下的几百款）跳过，避免退化回 O(n²)
+    for (let i = 0; i < arr.length; i++) for (let j = i + 1; j < arr.length; j++) tryPair(arr[i], arr[j]);
+  };
+  idxStem.forEach(scanBucket);   // 同名主干：强信号，优先
+  idxDev.forEach(scanBucket);
+  idxPub.forEach(scanBucket);
+  idxTok.forEach(scanBucket);
+
+  // ---- 兜底：候选对为 0 但游戏数很少时，仍做全量比较（小数据量不吃性能） ----
+  if (seen.size === 0 && games.length <= 60) {
+    for (let i = 0; i < games.length; i++) {
+      for (let j = i + 1; j < games.length; j++) tryPair(games[i].appid, games[j].appid);
+    }
+  }
+
+  const groups = new Map();
+  games.forEach(g => {
+    const root = find(g.appid);
+    if (!groups.has(root)) groups.set(root, []);
+    groups.get(root).push(g);
+  });
+  const out = [];
+  groups.forEach((arr, root) => {
+    if (arr.length < 2) { arr.forEach(g => out.push({ id: 'solo-' + g.appid, games: [g], label: null })); return; }
+    const stems = arr.map(g => nameStem(g.name) || g.name).filter(Boolean);
+    stems.sort((x, y) => x.length - y.length);
+    const label = stems[0] || ('系列 ' + root);
+    out.push({ id: 'series-' + root, games: arr.slice().sort((a, b) => nameStem(a.name).localeCompare(nameStem(b.name), 'zh-CN')), label });
+  });
+  return out;
+}
+/* 统计某游戏是否有系列同伴（供表格标记与筛选）
+ * 优化：先按「开发商/发行商/主干」缩小候选，再逐个校验，避免每行都全表扫描。 */
+function seriesMateCount(g, games) {
+  games = games || STATE.games;
+  const d = g.details || {};
+  const cands = new Set();
+  const devSet = new Set((d.developers || []).map(x => String(x).toLowerCase()));
+  const pubSet = new Set((d.publishers || []).map(x => String(x).toLowerCase()));
+  const stemA = nameStem(g.name), stemB = nameStem(g.originalName || g.name);
+  games.forEach(o => {
+    if (Number(o.appid) === Number(g.appid)) return;
+    const od = o.details || {};
+    // 快速否定：既不同厂商、主干也不同 → 一定不是系列（避免昂贵的 isSameSeries）
+    const devHit = (od.developers || []).some(x => devSet.has(String(x).toLowerCase()));
+    const pubHit = (od.publishers || []).some(x => pubSet.has(String(x).toLowerCase()));
+    const oStemA = nameStem(o.name), oStemB = nameStem(o.originalName || o.name);
+    const stemHit = (!!stemA && (oStemA === stemA || oStemB === stemA)) ||
+                    (!!stemB && (oStemA === stemB || oStemB === stemB));
+    if (!devHit && !pubHit && !stemHit) return;   // 直接跳过，不调 isSameSeries
+    cands.add(o.appid);
+  });
+  let n = 0;
+  cands.forEach(id => {
+    const o = games.find(x => Number(x.appid) === Number(id));
+    if (o && isSameSeries(g, o).same) n++;
+  });
+  return n;
+}
+
+/* 一次算好全表的「系列同伴数」，供 renderTable 复用（避免逐行 O(n²)） */
+function computeMateMap(games) {
+  const map = new Map();
+  games.forEach(g => map.set(g.appid, 0));
+  // 用分组结果反推：同组内每人的伙伴数 = 组大小 - 1
+  const groups = buildSeriesGroups(games);
+  groups.forEach(gr => {
+    if (gr.games.length < 2) return;
+    gr.games.forEach(g => map.set(g.appid, gr.games.length - 1));
+  });
+  return map;
 }
 
 /* ============================================================
@@ -1012,7 +1994,7 @@ async function fetchDlcList(mainAppid, dlcIds, cancelled, opts) {
       const entry = await fetchDlcEntry(ids[i], opts);
       if (entry) out.push(entry);
     } catch (e) {
-      if (e && (e.name === 'AbortError' || /aborted|canceled/i.test(String(e.message || '')))) throw e;
+      if (isAbortErr(e)) throw e;
       console.warn('DLC 获取失败', ids[i], e);
       toast('DLC（' + ids[i] + '）获取失败：' + e.message, 'warn');
     }
@@ -1048,18 +2030,20 @@ async function fetchGameData(appid, opts) {
   const data = await steamAppDetails(appid, opts);
   const price = extractPrice(data, data && data.price_overview);
   const details = extractDetails(data);
+  // 简介强制中文化（修复 #2）：官方中文直用，否则机翻并标记
+  await ensureChineseDescription(details, opts);
   const nameInfo = await resolveChineseName(data, opts.fallbackName, opts);
   let rating = defaultRating();
   try {
     const qs = await steamReviews(appid, opts);
     if (qs && qs.total_reviews > 0) {
       const positive = Math.round(qs.total_positive / qs.total_reviews * 100);
-      rating = { score: scoreFromPositive(positive), positive, desc: qs.review_score_desc || null, updatedAt: nowMs() };
+      rating = { score: scoreFromPositive(positive), positive, total: qs.total_reviews, desc: qs.review_score_desc || null, updatedAt: nowMs() };
     } else if (qs && qs.review_score_desc) {
-      rating = { score: null, positive: null, desc: qs.review_score_desc, updatedAt: nowMs() };
+      rating = { score: null, positive: null, total: qs.total_reviews || null, desc: qs.review_score_desc, updatedAt: nowMs() };
     }
   } catch (e) {
-    if (e && (e.name === 'AbortError' || /aborted|canceled/i.test(String(e.message || '')))) throw e;
+    if (isAbortErr(e)) throw e;
     toast('评分获取失败（' + appid + '）：' + e.message, 'warn');
   }
   const dlcIds = data && Array.isArray(data.dlc) ? data.dlc : [];
@@ -1100,7 +2084,7 @@ async function refreshItadLow(g, opts) {
     }
   } catch (e) {
     // 中断错误向上抛出，不当作普通失败
-    if (e && (e.name === 'AbortError' || /aborted|canceled/i.test(String(e.message || '')))) throw e;
+    if (isAbortErr(e)) throw e;
     toast('史低查询失败（' + (g.name || g.appid) + '）：' + e.message, 'warn');
     // 保留旧史低数据；无旧数据则保持"待核"
   }
@@ -1134,10 +2118,11 @@ async function addGameByAppid(appid, opts) {
   g.details = info.details;
   STATE.games.unshift(g);
   saveData();
-  renderAll();               // 游戏本体先上架显示，DLC/史低随后补全
+  autoGroupSeries();       // 需求 #4：新游戏进来自动归并同系列
+  if (!opts.skipRender) renderAll();   // 批量导入时由调用方节流渲染
   await refreshItadLow(g, opts);   // 无 ITAD Key 时直接跳过，不耗时
   saveData();
-  renderAll();
+  if (!opts.skipRender) renderAll();
   scheduleDlcFetch(g, info.dlcIds, opts.quietDlc);
   return g;
 }
@@ -1159,110 +2144,158 @@ let taskSeq = 0;
 let queueRunning = false;
 const TASK_ICON = { pending: '⏳', running: '🔄', needpick: '👀', done: '✅', failed: '❌' };
 
+/* ------------------------------------------------------------
+ * 任务级取消状态（修复 #5 的核心）
+ * 旧实现只有一个全局 STATE.cancelTask：
+ *   「取消任务」把它置 true → 取消流程结束后没人复位 → 之后每一次
+ *   runTask 第一行就命中 STATE.cancelTask 直接判为"已取消"，
+ *   造成新加入的任务"一动不动然后变成已取消 / 被跳过"。
+ * 现在：每个任务各自持有 cancelled 标记，只互相影响自己的任务；
+ *       全局标志只是"总闸"，且明确由谁设置、由谁复位。
+ * ------------------------------------------------------------ */
+function newTask(term) {
+  const t = {
+    id: ++taskSeq, term: term, status: 'pending', msg: '排队中…',
+    candidates: null, pickPromise: null, resolvePick: null, pickOpened: false,
+    cancelled: false, ctrl: null, tries: 0, startedAt: 0, hardFail: false
+  };
+  t.ctrl = new AbortController();   // 每个任务独立的 AbortController，互不干扰
+  return t;
+}
+function taskAborted(t) {
+  return !!(t && (t.cancelled || (t.ctrl && t.ctrl.signal.aborted)));
+}
+
 async function handleAddInput() {
   const raw = $('#addInput').value.trim();
   if (!raw) { toast('请输入游戏名或 AppID。', 'warn'); return; }
-  const terms = raw.split(/[,，、]+/).map(s => s.trim()).filter(Boolean);
+  const terms = raw.split(/[,，、\n]+/).map(s => s.trim()).filter(Boolean);
   if (!terms.length) return;
   $('#addInput').value = '';   // 立即清空，方便继续输入下一条
-  let n = 0;
+  let n = 0, dup = 0;
   terms.forEach(term => {
-    const dup = STATE.taskQueue.find(t => t.term === term && (t.status === 'pending' || t.status === 'running' || t.status === 'needpick'));
-    if (dup) return;
+    const exists = STATE.taskQueue.find(t => t.term === term &&
+      (t.status === 'pending' || t.status === 'running' || t.status === 'needpick'));
+    if (exists) { dup++; return; }
     if (/^\d+$/.test(term) && findGame(Number(term))) {
-      STATE.taskQueue.push({ id: ++taskSeq, term: term, status: 'done', msg: '已在愿望单中，跳过' });
+      const t = newTask(term);
+      t.status = 'done'; t.msg = '已在愿望单中，跳过';
+      STATE.taskQueue.push(t);
       renderQueue();
       return;
     }
-    STATE.taskQueue.push({ id: ++taskSeq, term: term, status: 'pending', msg: '排队中…' });
+    STATE.taskQueue.push(newTask(term));
     n++;
   });
   renderQueue();
   if (n > 0) toast('已加入任务队列（' + n + ' 个）。可以继续输入下一个游戏。', 'success');
+  if (dup > 0) toast(dup + ' 个重复任务已跳过。', 'info');
+  // 新任务进来即视为用户希望继续处理，清掉上一次的总闸
+  STATE.cancelTask = false;
   pumpQueue();
 }
 
 async function pumpQueue() {
   if (queueRunning) return;
   queueRunning = true;
-  while (true) {
-    const t = STATE.taskQueue.find(x => x.status === 'pending');
-    if (!t) break;
-    await runTask(t);
-    await sleep(600);   // 任务间限速
+  try {
+    while (true) {
+      // 候选弹窗必须逐个处理；处理完当前选择后再继续下一条任务。
+      const waiting = STATE.taskQueue.find(x => x.status === 'needpick' && !x.pickOpened);
+      if (waiting) { openTaskPick(waiting); break; }
+      const t = STATE.taskQueue.find(x => x.status === 'pending');
+      if (!t) break;
+      await runTask(t);
+      if (t.status === 'needpick') { openTaskPick(t); break; }
+      await sleep(600);   // 任务间限速
+    }
+  } finally {
+    queueRunning = false;
   }
-  queueRunning = false;
-  // 队列空闲时，若有等待选候选的任务还没弹出过，自动弹出
-  const wait = STATE.taskQueue.find(x => x.status === 'needpick' && !x.pickOpened);
-  if (wait) openTaskPick(wait);
   renderQueue();
 }
 
 async function runTask(t) {
-  t.status = 'running'; t.msg = '处理中…'; renderQueue();
-  // 为本次任务创建独立的 AbortController，可被外部取消
-  const ctrl = new AbortController();
-  STATE.currentTaskAbort = ctrl;
+  t.status = 'running'; t.msg = '处理中…'; t.startedAt = nowMs(); renderQueue();
+  STATE.currentTaskAbort = t.ctrl;      // 供「取消任务」按钮打断
+  holdProgress();
   try {
-    if (STATE.cancelTask) throw Object.assign(new Error('已取消'), { name: 'AbortError' });
+    if (taskAborted(t)) throw Object.assign(new Error('已取消'), { name: 'AbortError' });
     if (/^\d+$/.test(t.term)) {
-      await addGameByAppid(t.term, { signal: ctrl.signal });
+      await addGameByAppid(t.term, { signal: t.ctrl.signal });
       t.status = 'done'; t.msg = '已添加：AppID ' + t.term;
     } else {
-      const items = await steamSearch(t.term, { signal: ctrl.signal });
-      if (!items.length) { t.status = 'failed'; t.msg = 'Steam 搜索无结果'; }
-      else {
+      const items = await steamSearch(t.term, { signal: t.ctrl.signal });
+      if (taskAborted(t)) throw Object.assign(new Error('已取消'), { name: 'AbortError' });
+      if (!items.length) { t.status = 'failed'; t.msg = 'Steam 搜索无结果'; t.hardFail = true; }
+      else if (items.length === 1) {
+        // 只有一个结果：不再打扰用户，直接添加
+        t.status = 'running'; t.msg = '唯一结果，直接添加 ' + items[0].name + ' …'; renderQueue();
+        await addGameByAppid(items[0].id, { fallbackName: items[0].name, signal: t.ctrl.signal });
+        t.status = 'done'; t.msg = '已添加：' + items[0].name;
+      } else {
         t.candidates = items;
         t.status = 'needpick'; t.msg = '等待选择候选游戏';
         t.pickOpened = false;
-        t.pickPromise = new Promise(res => { t.resolvePick = res; });
-        t.pickPromise.then(picked => {
-          if (picked) finishPick(t, picked);
-          else { t.status = 'failed'; t.msg = '未选择候选（可点重试）'; renderQueue(); }
-        });
-        // 若当前没有其他排队任务，立即弹出候选选择
-        const otherPending = STATE.taskQueue.some(x => x !== t && x.status === 'pending');
-        if (!otherPending) openTaskPick(t);
       }
     }
   } catch (e) {
-    if (e && (e.name === 'AbortError' || /aborted|canceled|已取消/i.test(String(e.message || '')))) {
+    if (isAbortErr(e)) {
       t.status = 'failed'; t.msg = '已取消';
     } else {
-      t.status = 'failed'; t.msg = e.message;
+      t.status = 'failed'; t.msg = String(e.message || e);
     }
   } finally {
-    if (STATE.currentTaskAbort === ctrl) STATE.currentTaskAbort = null;
+    if (STATE.currentTaskAbort === t.ctrl) STATE.currentTaskAbort = null;
+    releaseProgress();
     renderQueue();
   }
 }
 
+/* 用户在候选弹窗里选定后，继续完成这个任务 */
 async function finishPick(t, picked) {
+  if (!t) return;
+  if (!picked) {
+    t.status = 'failed'; t.msg = '未选择候选（可点重试）';
+    renderQueue();
+    pumpQueue();
+    return;
+  }
   t.status = 'running'; t.msg = '正在获取 ' + picked.name + ' …'; renderQueue();
-  const ctrl = new AbortController();
+  if (!t.ctrl || t.ctrl.signal.aborted) t.ctrl = new AbortController();
+  const ctrl = t.ctrl;
   STATE.currentTaskAbort = ctrl;
+  holdProgress();
   try {
-    if (STATE.cancelTask) throw Object.assign(new Error('已取消'), { name: 'AbortError' });
+    if (taskAborted(t)) throw Object.assign(new Error('已取消'), { name: 'AbortError' });
     await addGameByAppid(picked.id, { fallbackName: picked.name, signal: ctrl.signal });
     t.status = 'done'; t.msg = '已添加：' + picked.name;
   } catch (e) {
-    if (e && (e.name === 'AbortError' || /aborted|canceled|已取消/i.test(String(e.message || '')))) {
+    if (isAbortErr(e)) {
       t.status = 'failed'; t.msg = '已取消';
     } else {
-      t.status = 'failed'; t.msg = e.message;
+      t.status = 'failed'; t.msg = String(e.message || e);
     }
   } finally {
     if (STATE.currentTaskAbort === ctrl) STATE.currentTaskAbort = null;
+    releaseProgress();
     renderQueue(); renderAll();
-    pumpQueue();   // 继续处理队列中剩余任务
+    pumpQueue();
   }
 }
 
+const pendingPicks = {};
 function openTaskPick(t) {
   if (!t || t.status !== 'needpick' || t.pickOpened) return;
+  if (pendingPicks[t.id]) return;
+  pendingPicks[t.id] = true;
   t.pickOpened = true;
   showCandidates(t.candidates, '任务「' + t.term + '」请选择正确的游戏：').then(picked => {
-    if (t.resolvePick) { const r = t.resolvePick; t.resolvePick = null; r(picked); }
+    delete pendingPicks[t.id];
+    return finishPick(t, picked);
+  }).catch(e => {
+    delete pendingPicks[t.id];
+    t.status = 'failed'; t.msg = '候选选择失败：' + (e && e.message); renderQueue();
   });
 }
 
@@ -1293,27 +2326,30 @@ $('#taskList').addEventListener('click', e => {
   if (!t) return;
   if (btn.dataset.tact === 'pick') openTaskPick(t);
   else if (btn.dataset.tact === 'retry') {
-    if (t.candidates) { t.pickOpened = false; t.status = 'needpick'; t.msg = '等待选择候选游戏'; openTaskPick(t); }
-    else { t.status = 'pending'; t.msg = '重新排队…'; pumpQueue(); }
-    renderQueue();
+    // 重试：只重排这一个任务，重置它自己的取消状态与 AbortController
+    t.cancelled = false;
+    t.ctrl = new AbortController();
+    if (t.candidates && t.candidates.length) {
+      t.status = 'needpick'; t.msg = '等待选择候选游戏';
+      t.pickOpened = false;
+      STATE.cancelTask = false;
+      renderQueue(); openTaskPick(t);
+    } else {
+      t.status = 'pending'; t.msg = '重新排队…';
+      STATE.cancelTask = false;
+      renderQueue();
+      pumpQueue();                    // 重试要主动把队列泵起来
+    }
   }
-    else if (btn.dataset.tact === 'remove') {
-    // 移除任务时立刻取消其 fetch，避免它继续阻塞队列或浪费请求
-    if (t.status === 'running' || t.status === 'needpick') {
-      STATE.cancelTask = true;
-      if (STATE.currentTaskAbort) { try { STATE.currentTaskAbort.abort(); } catch (e) {} }
-    }
-    // 【修复代码】关闭候选选择器弹窗，避免透明遮罩层残留导致整个页面无法点击
-    if ($('#modalCandidates').classList.contains('show')) {
-      closeModal('modalCandidates');
-    }
-    if (t.resolvePick) {
-      const r = t.resolvePick;
-      t.resolvePick = null;
-      r(null);
-    }
+  else if (btn.dataset.tact === 'remove') {
+    // 移除任务只取消它自己，绝不影响其他任务
+    t.cancelled = true;
+    if (t.ctrl) { try { t.ctrl.abort(); } catch (e) {} }
+    if (t.resolvePick) { const r = t.resolvePick; t.resolvePick = null; r(null); }
+    delete pendingPicks[t.id];
     STATE.taskQueue = STATE.taskQueue.filter(x => x.id !== t.id);
     renderQueue();
+    pumpQueue();
   }
 });
 $('#btnHideTasks').addEventListener('click', () => { STATE.taskPanelHidden = true; renderQueue(); });
@@ -1322,6 +2358,20 @@ $('#btnClearDone').addEventListener('click', () => {
   STATE.taskQueue = STATE.taskQueue.filter(t => t.status !== 'done' && t.status !== 'failed');
   renderQueue();
 });
+/* 重试所有失败任务：一键把整批救回来（修复 #5 的兜底） */
+$('#btnRetryFailed').addEventListener('click', () => {
+  const failed = STATE.taskQueue.filter(t => t.status === 'failed');
+  if (!failed.length) { toast('没有失败的任务。', 'info'); return; }
+  failed.forEach(t => {
+    t.cancelled = false;
+    t.ctrl = new AbortController();
+    t.status = 'pending'; t.msg = '重新排队…';
+  });
+  STATE.cancelTask = false;
+  renderQueue();
+  toast('已重新排队 ' + failed.length + ' 个任务。', 'success');
+  pumpQueue();
+});
 
 /* ============================================================
  * 刷新机制
@@ -1329,15 +2379,18 @@ $('#btnClearDone').addEventListener('click', () => {
 async function refreshOne(gameId, opts) {
   const g = findGame(gameId);
   if (!g) return;
+  holdProgress();
   try {
     setProgress('正在刷新：' + g.name, null);
     await addGameByAppid(g.appid, Object.assign({ refresh: true }, opts || {}));
     toast('已刷新：' + g.name, 'success');
   } catch (e) {
-    if (e && (e.name === 'AbortError' || /aborted|canceled|已取消/i.test(String(e.message || '')))) return;
+    if (isAbortErr(e)) return;
     toast('刷新失败（' + g.name + '）：' + e.message, 'error');
+  } finally {
+    releaseProgress();
+    renderAll();
   }
-  renderAll();
 }
 
 async function refreshAll() {
@@ -1349,6 +2402,7 @@ async function refreshAll() {
   STATE.currentTaskAbort = ctrl;
   const list = STATE.games.slice();
   let fail = 0;
+  holdProgress();
   try {
     for (let i = 0; i < list.length; i++) {
       // 每一轮迭代顶部立即检查取消标记
@@ -1359,7 +2413,7 @@ async function refreshAll() {
       try {
         await addGameByAppid(g.appid, { refresh: true, quietDlc: true, signal: ctrl.signal });
       } catch (e) {
-        if (e && (e.name === 'AbortError' || /aborted|canceled|已取消/i.test(String(e.message || '')))) break;
+        if (isAbortErr(e)) break;
         fail++; toast('刷新失败（' + g.name + '）：' + e.message, 'error');
       }
       // 大列表时节流渲染，避免每条都重建整表
@@ -1372,8 +2426,8 @@ async function refreshAll() {
   } finally {
     if (STATE.currentTaskAbort === ctrl) STATE.currentTaskAbort = null;
     STATE.busy.refreshAll = false;
-    STATE.cancelTask = false;
-    hideProgress();
+    STATE.cancelTask = false;      // 关键：无论如何都复位总闸，避免影响后续任务
+    releaseProgress();             // 引用计数归零 → 进度条立刻消失
     renderAll();
   }
 }
@@ -1404,7 +2458,7 @@ async function importWishlist() {
   try {
     steamid = typeof input === 'string' ? input : await steamResolveVanity(input.vanity, { signal: ctrl.signal });
   } catch (e) {
-    if (e && (e.name === 'AbortError' || /aborted|canceled|已取消/i.test(String(e.message || '')))) {
+    if (isAbortErr(e)) {
       if (STATE.currentTaskAbort === ctrl) STATE.currentTaskAbort = null; return;
     }
     toast(e.message, 'error'); if (STATE.currentTaskAbort === ctrl) STATE.currentTaskAbort = null; return;
@@ -1412,7 +2466,7 @@ async function importWishlist() {
   let items;
   try { items = await steamGetWishlist(steamid, { signal: ctrl.signal }); }
   catch (e) {
-    if (e && (e.name === 'AbortError' || /aborted|canceled|已取消/i.test(String(e.message || '')))) {
+    if (isAbortErr(e)) {
       if (STATE.currentTaskAbort === ctrl) STATE.currentTaskAbort = null; return;
     }
     toast('获取愿望单失败：' + e.message, 'error'); if (STATE.currentTaskAbort === ctrl) STATE.currentTaskAbort = null; return;
@@ -1436,6 +2490,7 @@ async function runWishlistImport(appids) {
   const ctrl = new AbortController();
   STATE.currentTaskAbort = ctrl;
   let added = 0, skipped = 0, failed = 0;
+  holdProgress();
   try {
     for (let i = 0; i < appids.length; i++) {
       if (STATE.cancelTask || ctrl.signal.aborted) { toast('导入已取消。成功 ' + added + '，跳过 ' + skipped + '，失败 ' + failed + '。', 'warn', 6000); return; }
@@ -1444,11 +2499,12 @@ async function runWishlistImport(appids) {
       setProgress('正在导入 ' + (i + 1) + ' / ' + appids.length + '（新增' + added + ' 跳过' + skipped + '）', (i / appids.length) * 100);
       try {
         // 批量导入先取基础信息 + 评分；DLC 建议导入后按需「刷新全部」补全
-        await addGameByAppid(id, { quietDlc: true, signal: ctrl.signal });
+        await addGameByAppid(id, { quietDlc: true, signal: ctrl.signal, skipRender: true });
         added++;
-        renderAll();
+        // 大清单节流渲染：每 5 条或最后一条才重绘，避免几百次 renderAll 拖慢导入
+        if (appids.length <= 30 || added % 5 === 0) renderAll();
       } catch (e) {
-        if (e && (e.name === 'AbortError' || /aborted|canceled|已取消/i.test(String(e.message || '')))) {
+        if (isAbortErr(e)) {
           toast('导入已取消。成功 ' + added + '，跳过 ' + skipped + '，失败 ' + failed + '。', 'warn', 6000);
           return;
         }
@@ -1463,7 +2519,7 @@ async function runWishlistImport(appids) {
     if (STATE.currentTaskAbort === ctrl) STATE.currentTaskAbort = null;
     STATE.busy.importing = false;
     STATE.cancelTask = false;
-    hideProgress();
+    releaseProgress();
     renderAll();
   }
 }
@@ -1559,6 +2615,7 @@ function handleOcrText(text) {
     const btn = document.createElement('button');
     btn.className = 'btn small'; btn.textContent = '搜索';
     btn.onclick = async () => {
+      holdProgress();
       try {
         const items = await steamSearch(line);
         if (!items.length) { toast('Steam 搜索无结果：' + line, 'warn'); return; }
@@ -1569,15 +2626,127 @@ function handleOcrText(text) {
           toast('已添加：' + picked.name, 'success');
         }
       } catch (e) { toast('搜索失败：' + e.message, 'error'); }
-      finally { hideProgress(); renderAll(); }
+      finally { releaseProgress(); renderAll(); }
     };
     row.appendChild(span); row.appendChild(btn);
     box.appendChild(row);
   });
 }
 
+/* ------------------------------------------------------------
+ * 进度条
+ * 修复：进度条改为「引用计数」管理。
+ *   - 旧代码任何一处忘记调用 hideProgress()，进度条就永久残留
+ *     （例如刷新全部结束后、或页面刷新后仍有未完成的异步任务）。
+ *   - 现在用 open/hold/release，计数归零才隐藏，并强制复位动画，
+ *     保证不会出现"右上角已提示刷新成功、进度条还在跑"。
+ * ------------------------------------------------------------ */
+let progressTokens = 0;
+let progressHideTimer = null;
+
+function setProgress(label, pct) {
+  if (progressHideTimer) { clearTimeout(progressHideTimer); progressHideTimer = null; }
+  progressTokens = Math.max(progressTokens, 1);
+  $('#progressWrap').classList.add('show');
+  applyProgressSticky();
+  $('#progressLabel').textContent = label;
+  const bar = $('#progressBar');
+  if (pct == null) {
+    bar.classList.add('indet');
+    bar.style.width = '';
+  } else {
+    bar.classList.remove('indet');
+    bar.style.width = Math.max(0, Math.min(100, pct)) + '%';
+  }
+}
+
+/* 标记一个"进度条持有者"开始 / 结束；只有全部释放才隐藏 */
+function holdProgress() { progressTokens++; }
+function releaseProgress(force) {
+  progressTokens = force ? 0 : Math.max(0, progressTokens - 1);
+  if (progressTokens === 0) scheduleHideProgress();
+}
+
+function scheduleHideProgress() {
+  if (progressHideTimer) clearTimeout(progressHideTimer);
+  // 稍作延迟，避免多个任务首尾相接时进度条闪烁
+  progressHideTimer = setTimeout(() => {
+    progressHideTimer = null;
+    if (progressTokens > 0) return;
+    hideProgress(true);
+  }, 450);
+}
+
+function hideProgress(force) {
+  if (!force && progressTokens > 0) { releaseProgress(); return; }
+  progressTokens = 0;
+  if (progressHideTimer) { clearTimeout(progressHideTimer); progressHideTimer = null; }
+  const wrap = $('#progressWrap');
+  wrap.classList.remove('show');
+  /* 关键修复：先摘掉 indet 动画类再清空宽度，
+     否则下次 show 的瞬间会先按上一轮的动画位置闪一下"假进度" */
+  const bar = $('#progressBar');
+  bar.classList.remove('indet');
+  bar.style.animation = 'none';
+  bar.style.width = '0%';
+  void bar.offsetWidth;          // 强制回流，让 animation:none 立即生效
+  bar.style.animation = '';
+  applyProgressSticky();
+}
+
+/* 兜底：进度条吸附在视口顶部（用 position:sticky，无需扫描全页元素） */
+function applyProgressSticky() {
+  const wrap = $('#progressWrap');
+  if (!wrap) return;
+  // 用 sticky 而不是 fixed：不脱离文档流，避免和表格滚动容器互相干扰
+  wrap.style.position = wrap.classList.contains('show') ? 'sticky' : '';
+}
+function updateProgressSticky() {
+  applyProgressSticky();
+}
+
+/* ------------------------------------------------------------
+ * 横向滚动条常驻可见
+ * 修复：把「表格体」变成独立纵向滚动容器，横向滚动条就固定躺在
+ *       这个容器的底边、始终看得见，不必先滚到整页最底部才能左右拖。
+ * ------------------------------------------------------------ */
+function setupXScroll() {
+  const wrap = $('#tableWrap');
+  const body = $('#xscrollBody');
+  if (!wrap || !body) return;
+  const vh = window.innerHeight || 800;
+
+  // 先清掉上次的限制，量出表格区在页面中的起始位置（工具栏+统计卡占了多高）
+  wrap.style.removeProperty('--xscroll-h');
+  wrap.classList.remove('has-xscroll');
+  const top = wrap.getBoundingClientRect().top + (document.scrollingElement ? document.scrollingElement.scrollTop : 0);
+
+  // 目标：让表格底部（也就是横向滚动条所在位置）落在视口内，
+  // 留一点余量给进度条/提示，保证"滚动条始终在眼前"。
+  const marginBottom = 30;
+  // 横向滚动条自身约占 14px，从可用高度里预先扣掉，
+  // 否则表格底边（含滚动条）会刚好被挤出视口。
+  const XBAR_H = 16;
+  const avail = Math.floor(vh - top - marginBottom - XBAR_H);
+  // 视口太矮时给一个下限，避免表格被压成一条缝
+  const cap = Math.max(200, avail);
+
+  wrap.style.setProperty('--xscroll-h', cap + 'px');
+  // 内容不超过可用高度时不需要独立滚动容器（否则会凭空多出一条滚动区）
+  const need = body.scrollHeight > cap + 8;
+  wrap.classList.toggle('has-xscroll', need);
+  if (!need) wrap.style.removeProperty('--xscroll-h');
+  applyProgressSticky();
+}
+
+function bindWindowScroll() {
+  // 进度条改用 position:sticky 后，滚动时无需再做任何计算；
+  // 只需在窗口尺寸变化时重新计算表格滚动区高度。
+  window.addEventListener('resize', debounce(() => { setupXScroll(); }, 150));
+}
+
 /* ============================================================
- * MODAL / PROGRESS 基础
+ * MODAL 基础（进度条相关函数见上方 progress 区块）
  * ============================================================ */
 function openModal(id) {
   $('#overlay').classList.add('show');
@@ -1597,19 +2766,21 @@ let candResolve = null;   // 候选选择器挂起的 Promise resolve
 $$('[data-close]').forEach(btn => btn.addEventListener('click', () => closeModal(btn.dataset.close)));
 $('#overlay').addEventListener('click', closeAllModals);
 
-function setProgress(label, pct) {
-  $('#progressWrap').classList.add('show');
-  $('#progressLabel').textContent = label;
-  if (pct == null) { $('#progressBar').classList.add('indet'); $('#progressBar').style.width = ''; }
-  else { $('#progressBar').classList.remove('indet'); $('#progressBar').style.width = Math.max(0, Math.min(100, pct)) + '%'; }
-}
-function hideProgress() { $('#progressWrap').classList.remove('show'); $('#progressBar').style.width = '0'; }
+/* 详情页内「同系列作品」点击直接跳转到那部游戏的详情（需求 #4） */
+$('#detailBody').addEventListener('click', e => {
+  const a = e.target.closest('[data-open-appid]');
+  if (!a) return;
+  e.preventDefault();
+  const id = Number(a.dataset.openAppid);
+  const g = findGame(id);
+  if (!g) { toast('该游戏已不在愿望单中。', 'warn'); return; }
+  openDetail(id);
+});
 
 let confirmCallback = null;
-function showConfirm(msgHtml, onOk, opts) {
+function showConfirm(msg, onOk, opts) {
   opts = opts || {};
-  $('#confirmText').textContent = '';
-  $('#confirmText').innerHTML = msgHtml;
+  $('#confirmText').textContent = String(msg == null ? '' : msg);
   confirmCallback = onOk;
   $('#confirmExtra').checked = false;   // 每次弹窗重置，防止上次勾选状态泄漏
   $('#confirmExtraWrap').style.display = opts.extraText ? 'flex' : 'none';
@@ -1653,24 +2824,34 @@ function showCandidates(items, title) {
       });
       box.appendChild(div);
     });
-    // 异步补充发行日期与中文名校验（前 8 个，严格限速；弹窗关闭即停止）
+    /* 异步补全发行日期与实际中文名（修复 #3）：
+       旧实现只在"搜索结果本身没有中文"时才去查中文名 —— 但用英文词
+       搜索时，Steam 返回的候选名本来就是英文，所以它永远只做机翻，
+       真正的中文官方名始终不显示。现在改为：候选一律回查
+       appdetails 取官方中文名，有则显示为"中文名（英文名）"。 */
     (async () => {
-      for (const item of items.slice(0, 8)) {
+      for (const item of items.slice(0, 20)) {
         if (!$('#modalCandidates').classList.contains('show') || !candResolve) return;
         const span = box.querySelector('[data-rel="' + item.id + '"]');
         if (!span) continue;
         try {
           const d = await steamAppDetails(item.id);
           if (!$('#modalCandidates').classList.contains('show')) return;
-          span.textContent = (d && d.release_date && d.release_date.date) || '暂无数据';
-          // 候选名称中文名校验：无中文时展示机翻候选名
-          if (d && d.name && !hasChinese(d.name) && STATE.settings.autoTranslate) {
+          if (span.isConnected) span.textContent = (d && d.release_date && d.release_date.date) || '暂无数据';
+          if (!d) continue;
+          const cnEl = span.isConnected ? span.closest('.cand-info').querySelector('.cn') : null;
+          if (!cnEl) continue;
+          const officialCn = d.name && hasChinese(d.name) ? d.name : null;
+          if (officialCn && officialCn !== item.name) {
+            // 官方中文名与搜索结果名不同：中文名在前，英文名保留在下方
+            cnEl.innerHTML = esc(officialCn);
+            const enEl = span.closest('.cand-info').querySelector('.en');
+            if (enEl) enEl.textContent = 'AppID: ' + item.id + ' · ' + item.name;
+          } else if (!officialCn && STATE.settings.autoTranslate) {
+            // 确实没有中文名：给出机翻参考，并标明是机翻
             try {
-              const tr = await translateText(d.name);
-              if (tr && span.isConnected) {
-                const cn = span.closest('.cand-info').querySelector('.cn');
-                if (cn) cn.innerHTML = '（译：' + esc(tr) + '） ' + esc(d.name);
-              }
+              const tr = await translateText(d.name || item.name);
+              if (tr && cnEl.isConnected) cnEl.innerHTML = esc(d.name || item.name) + ' <i style="color:var(--yellow);font-weight:normal;">（译：' + esc(tr) + '）</i>';
             } catch (e) {}
           }
         } catch (e) {
@@ -1688,7 +2869,17 @@ function applyFilters(games) {
   const f = STATE.filters;
   const kw = (f.search || '').toLowerCase().trim();
   return games.filter(g => {
-    if (kw && !(String(g.name).toLowerCase().includes(kw) || String(g.originalName || '').toLowerCase().includes(kw) || String(g.appid).includes(kw))) return false;
+    if (kw) {
+      const hay = [
+        g.name, g.originalName, g.appid,
+        (g.details && (g.details.genres || []).join(' ')) || '',
+        (g.details && (g.details.featureTags || []).join(' ')) || '',
+        (g.details && (g.details.developers || []).join(' ')) || '',
+        (g.details && (g.details.publishers || []).join(' ')) || '',
+        g.note || ''
+      ].join(' ').toLowerCase();
+      if (!hay.includes(kw)) return false;
+    }
     if (f.rec && getRecommendation(g).key !== f.rec) return false;
     if (f.conf) {
       const c = g.historicalLow && g.historicalLow.confidence ? g.historicalLow.confidence : 'pending';
@@ -1698,6 +2889,49 @@ function applyFilters(games) {
       if (f.target === 'reached' && !isTargetReached(g)) return false;
       if (f.target === 'notreached' && !(g.targetPrice != null && !isTargetReached(g))) return false;
       if (f.target === 'unset' && g.targetPrice != null) return false;
+    }
+    /* ---- 需求 #5：促销 / 史低 / 即将结束 / 系列 ---- */
+    if (f.sale) {
+      const onSale = !!(g.price && g.price.isOnSale);
+      if (f.sale === 'onsale' && !onSale) return false;
+      if (f.sale === 'notsale' && onSale) return false;
+      if (f.sale === 'lowest' && !isAtHistoricalLow(g)) return false;      // 正在史低
+      if (f.sale === 'belowlow') {                                          // 已破史低
+        const cur = g.price && g.price.current, low = g.historicalLow && g.historicalLow.price;
+        if (!(cur != null && low != null && cur < low * 0.995)) return false;
+      }
+      if (f.sale === 'ending') {                                            // 24 小时内结束
+        const ms = saleRemainMs(g);
+        if (!(ms != null && ms > 0 && ms <= 24 * 3600 * 1000)) return false;
+      }
+      if (f.sale === 'ending3') {                                           // 3 天内结束
+        const ms = saleRemainMs(g);
+        if (!(ms != null && ms > 0 && ms <= 3 * 24 * 3600 * 1000)) return false;
+      }
+      if (f.sale === 'nodiscount') {                                        // 未打折
+        if (g.price && g.price.isOnSale) return false;
+      }
+    }
+    if (f.series) {
+      const mates = seriesMateCount(g, STATE.games);
+      if (f.series === 'in' && mates < 1) return false;
+      if (f.series === 'solo' && mates > 0) return false;
+    }
+    if (f.value) {                                                          // 综合性价比等级
+      const grade = valueGrade(computeValueScore(g));
+      if (grade.label.charAt(0) !== f.value) return false;
+    }
+    if (f.genre) {                                                          // 类型标签
+      const genres = (g.details && g.details.genres) || [];
+      if (genres.indexOf(f.genre) === -1) return false;
+    }
+    if (f.feature) {                                                        // 特色标签
+      const fs2 = (g.details && g.details.featureTags) || [];
+      if (fs2.indexOf(f.feature) === -1) return false;
+    }
+    if (f.platform) {                                                       // 平台
+      const pf = (g.details && g.details.platforms) || [];
+      if (pf.indexOf(f.platform) === -1) return false;
     }
     return true;
   });
@@ -1710,12 +2944,11 @@ function sortValue(g, key) {
     case 'price': return g.price && g.price.current != null ? g.price.current : Infinity;
     case 'low': return g.historicalLow && g.historicalLow.price != null ? g.historicalLow.price : Infinity;
     case 'target': return g.targetPrice != null ? g.targetPrice : Infinity;
-    case 'value': {             // 性价比 = 史低 / 评分；无史低或无评分排最后
-      const low = g.historicalLow && g.historicalLow.price != null ? g.historicalLow.price : null;
-      const score = g.rating && g.rating.score != null ? g.rating.score : null;
-      if (low == null || !score) return Infinity;
-      return low / score;
+    case 'deadline': {          // 折扣截止：越快到期越靠前；无折扣/无时间排最后
+      const ms = saleRemainMs(g);
+      return (ms != null && ms > 0) ? ms : Infinity;
     }
+    case 'value': return computeValueScore(g).score;   // 综合性价比（越高越值，方向由 dir 决定）
   }
   return null;
 }
@@ -1746,20 +2979,28 @@ function renderStats() {
   const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '—';
   const reached = gs.filter(isTargetReached).length;
   const onSale = gs.filter(g => g.price && g.price.isOnSale).length;
+  const atLow = gs.filter(isAtHistoricalLow).length;
+  const endingSoon = gs.filter(g => { const ms = saleRemainMs(g); return ms != null && ms > 0 && ms <= 24 * 3600 * 1000; }).length;
+  const seriesCount = buildSeriesGroups(gs).filter(gr => gr.games.length > 1).length;
   const gems = gs.filter(g => g.rating && g.rating.score >= 9 && known(g) && g.price.current > 0 && g.price.current <= 50).length;
   const sumCur = gs.reduce((a, g) => a + (known(g) ? g.price.current : 0), 0);
   const sumLow = gs.reduce((a, g) => a + (lowKnown(g) ? g.historicalLow.price : 0), 0);
   const curKnown = gs.filter(known).length;
   const lowCnt = gs.filter(lowKnown).length;
+  const topValue = gs.length ? gs.map(g => computeValueScore(g)).sort((a, b) => b.score - a.score)[0] : null;
   const cards = [
     { l: '收录总数', v: gs.length, c: 'accent' },
     { l: '史低已确定', v: lowCnt + ' / ' + gs.length, c: 'green' },
     { l: '平均评分', v: avg, c: 'accent' },
     { l: '🎯 已达目标价', v: reached, c: 'green' },
     { l: '🔥 促销中', v: onSale, c: 'orange' },
+    { l: '📉 正在史低', v: atLow, c: 'green' },
+    { l: '⏰ 24h 内结束', v: endingSoon, c: 'red' },
+    { l: '📚 系列数', v: seriesCount, c: 'accent' },
     { l: '50 元内神作', v: gems, c: 'orange' },
     { l: '当前合计', v: '¥' + sumCur.toFixed(2) + (curKnown < gs.length ? '*' : ''), c: '' },
-    { l: '史低价合计', v: '¥' + sumLow.toFixed(2) + (lowCnt < gs.length ? '*' : ''), c: 'green' }
+    { l: '史低价合计', v: '¥' + sumLow.toFixed(2) + (lowCnt < gs.length ? '*' : ''), c: 'green' },
+    { l: '最高性价比', v: topValue ? topValue.score + ' 分' : '—', c: 'accent' }
   ];
   $('#stats').innerHTML = cards.map(c =>
     '<div class="stat-card" title="' + (c.l.indexOf('合计') !== -1 ? '仅统计有明确价格的数据，待核不算 0（* 表示存在待核项）' : '') + '">' +
@@ -1793,32 +3034,50 @@ function renderTable() {
   const games = applySort(applyFilters(STATE.games));
   if (!games.length) {
     tbody.innerHTML = '<tr><td colspan="16"><div class="empty-tip">' +
-      (STATE.games.length ? '没有符合筛选条件的游戏。' : '愿望单为空。请在上方输入游戏名或 AppID 添加，或使用「导入愿望单」「截图识别」。<br><small>手机操作：点游戏名看详情；点「✎ 史低 / 次数 / 目标价」单元格可直接输入。</small>') +
+      (STATE.games.length ? '没有符合筛选条件的游戏。<br><small>可点上方「重置筛选」清空条件。</small>' : '愿望单为空。请在上方输入游戏名或 AppID 添加，或使用「导入愿望单」「截图识别」。<br><small>手机操作：点游戏名看详情；点「✎ 史低 / 次数 / 目标价」单元格可直接输入。</small>') +
       '</div></td></tr>';
     $('#btnDeleteSel').style.display = 'none';
     return;
   }
-  const rows = games.map(g => {
-    const rec = getRecommendation(g);
+  const tagKind = STATE.tagKind || 'genre';
+  const groupMode = STATE.groupBySeries === true;   // 问题 #2：默认平铺，仅显式开启才分组
+  const recOf = new Map();
+  games.forEach(g => recOf.set(g.appid, getRecommendation(g)));
+  const valOf = new Map();
+  games.forEach(g => valOf.set(g.appid, computeValueScore(g)));
+  // 系列同伴数一次性算好（原来每行都扫全表，是 O(n²)，几百条时会卡）
+  const matesOf = computeMateMap(games);
+
+  const rowHtml = g => {
+    const rec = recOf.get(g.appid);
+    const vs = valOf.get(g.appid);
+    const mates = matesOf.get(g.appid);
     const priceCell = (g.price && g.price.current != null)
       ? '<span class="price-current">' + fmtPrice(g.price.current, g.price.currency) + '</span>' + (g.price.isOnSale ? '<span class="badge-disc">-' + g.price.discountPercent + '%</span>' : '')
       : '<span class="low-pending">获取失败/待核</span>';
     const origCell = (g.price && g.price.original != null && g.price.isOnSale) ? fmtPrice(g.price.original, g.price.currency) : '';
-    return '<tr data-appid="' + g.appid + '" class="' + (isTargetReached(g) ? 'reached' : '') + (STATE.selection.has(g.appid) ? ' selected' : '') + '">' +
+    const tagList = tagsOfKind(g, tagKind);
+    const tagText = tagList.slice(0, 3).join('/');
+    const extra = tagList.length > 3 ? '+' + (tagList.length - 3) : '';
+    return '<tr data-appid="' + g.appid + '" class="' + (isTargetReached(g) ? 'reached ' : '') + (isAtHistoricalLow(g) ? 'at-low ' : '') + (STATE.selection.has(g.appid) ? 'selected' : '') + '">' +
       '<td><input type="checkbox" class="row-check" data-appid="' + g.appid + '"' + (STATE.selection.has(g.appid) ? ' checked' : '') + '></td>' +
-      '<td class="gname" title="点击查看详情">' + esc(g.name) + '<span class="en">' + esc(g.originalName || '') + '</span></td>' +
+      '<td class="gname" title="点击查看详情">' + esc(g.name) + '<span class="en">' + esc(g.originalName || '') + '</span>' +
+        (mates > 0 ? '<span class="series-chip" title="同系列还有 ' + mates + ' 部作品">📚 系列 ' + (mates + 1) + ' 部</span>' : '') + '</td>' +
       '<td>' + g.appid + '</td>' +
       '<td>' + (g.rating && g.rating.score != null ? g.rating.score.toFixed(1) : '<span class="low-pending">待核</span>') + '</td>' +
-      '<td>' + (g.rating && g.rating.positive != null ? g.rating.positive + '%' : '—') + '</td>' +
+      '<td>' + (g.rating && g.rating.positive != null ? g.rating.positive + '%' : '—') +
+        (g.rating && g.rating.total ? '<br><small style="color:var(--muted)">' + fmtCount(g.rating.total) + ' 条</small>' : '') + '</td>' +
       '<td>' + priceCell + (origCell ? '<br><small style="color:var(--muted)">原价 ' + origCell + '</small>' : '') + '</td>' +
-      '<td>' + (g.price && g.price.isOnSale ? '<span class="badge-disc">-' + g.price.discountPercent + '%</span>' : '—') + '</td>' +
-      '<td class="td-low" title="点击输入史低价格">✎ ' + lowCellHtml(g) + '</td>' +
+      '<td>' + (g.price && g.price.isOnSale ? '<span class="badge-disc">-' + g.price.discountPercent + '%</span>' : '—') +
+        '<br><small>' + deadlineCellHtml(g) + '</small></td>' +
+      '<td class="td-low" title="点击输入史低价格">✎ ' + lowCellHtml(g) +
+        (isAtHistoricalLow(g) ? ' <span class="at-low-badge" title="当前价已达史低">史低中</span>' : '') + '</td>' +
       '<td class="td-count" title="点击输入史低次数">' + (g.historicalLow && g.historicalLow.count != null ? g.historicalLow.count : '—') + '</td>' +
-      '<td title="史低 ÷ 评分">' + ((g.historicalLow && g.historicalLow.price != null && g.rating && g.rating.score) ? (g.historicalLow.price / g.rating.score).toFixed(1) : '—') + '</td>' +
+      '<td title="综合性价比评分（0-100，越高越值）。悬停查看各因子明细">' + valueCellHtml(g, vs) + '</td>' +
       '<td class="td-target" title="点击输入目标价">✎ ' + targetCellHtml(g) + '</td>' +
       '<td>' + confCellHtml(g) + '</td>' +
       '<td><span class="rec-badge ' + rec.cls + '">' + rec.label + '</span></td>' +
-      '<td title="' + esc((g.details && g.details.tags || []).join('、')) + '">' + esc((g.details && g.details.tags || []).slice(0, 2).join('/')) + '</td>' +
+      '<td title="' + esc(tagList.join('、')) + '">' + esc(tagText) + (extra ? '<small style="color:var(--muted)"> ' + extra + '</small>' : '') + '</td>' +
       '<td title="' + esc(dlcSummary(g)) + '">' + esc(dlcBadgeText(g)) + '</td>' +
       '<td>' +
         '<button class="btn small" data-act="refresh" data-appid="' + g.appid + '" title="刷新（价格/评分/中文名/简介/DLC/史低）">♻️</button> ' +
@@ -1826,8 +3085,53 @@ function renderTable() {
         '<button class="btn small danger" data-act="del" data-appid="' + g.appid + '" title="删除">✕</button>' +
       '</td>' +
     '</tr>';
-  }).join('');
-  tbody.innerHTML = rows;
+  };
+
+  let html = '';
+  const PAGE = 300;                                  // 单页最多渲染 300 行 DOM，避免大清单卡顿
+  const limit = STATE.renderLimit || PAGE;
+  const shown = games.slice(0, limit === Infinity ? games.length : limit);
+  const hidden = games.length - shown.length;
+  const shownGroups = groupMode
+    ? buildSeriesGroups(shown)
+    : shown.map(g => ({ id: 'solo-' + g.appid, games: [g], label: null }));
+
+  if (groupMode) {
+    const multi = shownGroups.filter(gr => gr.games.length > 1);
+    const solos = shownGroups.filter(gr => gr.games.length === 1);
+    multi.forEach(gr => {
+      const sumCur = gr.games.reduce((s, g) => s + ((g.price && g.price.current != null) ? g.price.current : 0), 0);
+      const sumLow = gr.games.reduce((s, g) => s + ((g.historicalLow && g.historicalLow.price != null) ? g.historicalLow.price : 0), 0);
+      const onSale = gr.games.filter(g => g.price && g.price.isOnSale).length;
+      html += '<tr class="series-head"><td colspan="16">' +
+        '<span class="series-title">📚 系列：' + esc(gr.label) + '</span>' +
+        '<span class="series-stat">' + gr.games.length + ' 部 · 促销 ' + onSale + ' 部 · 当前合计 ' + fmtPrice(sumCur, 'CNY') +
+        (sumLow > 0 ? ' · 史低合计 ' + fmtPrice(sumLow, 'CNY') : '') + '</span>' +
+        '</td></tr>';
+      gr.games.forEach(g => { html += rowHtml(g); });
+    });
+    solos.forEach(gr => { html += rowHtml(gr.games[0]); });
+  } else {
+    shown.forEach(g => { html += rowHtml(g); });
+  }
+
+  // 超出单页上限：底部给一个「显示更多」
+  if (hidden > 0) {
+    html += '<tr class="more-row"><td colspan="16">' +
+      '<div class="more-tip">当前显示 ' + shown.length + ' / ' + games.length + ' 条（为保证大清单流畅，已分页渲染）。' +
+      '<button class="btn small" id="btnShowMore" style="margin-left:10px;">显示更多 ' + Math.min(PAGE, hidden) + ' 条</button>' +
+      '<button class="btn small" id="btnShowAll" style="margin-left:6px;">全部显示（' + games.length + ' 条，可能卡顿）</button>' +
+      '</div></td></tr>';
+  }
+
+  tbody.innerHTML = html;
+  STATE.__shownCount = shown.length;
+  STATE.__filteredGames = games;
+  if (hidden > 0) {
+    const more = $('#btnShowMore'), all = $('#btnShowAll');
+    if (more) more.addEventListener('click', () => { STATE.renderLimit = (STATE.renderLimit || PAGE) + PAGE; renderTable(); });
+    if (all) all.addEventListener('click', () => { STATE.renderLimit = Infinity; renderTable(); });
+  }
   const sel = STATE.selection.size;
   $('#btnDeleteSel').style.display = sel ? 'inline-block' : 'none';
   if (sel) $('#btnDeleteSel').textContent = '🗑 删除已选（' + sel + '）';
@@ -1838,7 +3142,27 @@ function renderTable() {
   }));
 }
 
-function renderAll() { renderStats(); renderTable(); renderSortArrows(); }
+function renderAll() {
+  refreshTagFilterOptions();
+  renderStats();
+  renderTable();
+  renderSortArrows();
+  syncGroupBtn();
+  renderActiveFilters();
+  setupXScroll();
+  scheduleDeadlineTick();
+}
+
+/* 折扣倒计时每分钟刷新一次（只在有折扣且有截止时间时才重绘，省性能） */
+let deadlineTimer = null;
+function scheduleDeadlineTick() {
+  if (deadlineTimer) return;
+  deadlineTimer = setInterval(() => {
+    const has = STATE.games.some(g => g.price && g.price.isOnSale && g.price.discountExpiration);
+    if (!has) return;
+    renderTable();
+  }, 60000);
+}
 
 function renderSortArrows() {
   $$('.sortable').forEach(th => {
@@ -1866,11 +3190,42 @@ function openDetail(appid) {
   $('#detailTitle').textContent = g.name;
   const d = g.details || {}, p = g.price || {}, r = g.rating || {}, lo = g.historicalLow || {};
   const rec = getRecommendation(g);
+  const vs = computeValueScore(g);
+  const grade = valueGrade(vs);
   let targetLine;
   if (g.targetPrice == null) targetLine = '未设置目标价';
   else if (isTargetReached(g)) targetLine = '✔ 已达成';
   else if (p.current != null) targetLine = '还差 ' + fmtPrice(g.targetPrice - p.current, p.currency || 'CNY');
   else targetLine = '当前价待核，无法判断';
+
+  /* 需求 #1：标签按类别分组展示（类型 / 特色 / 功能 / 平台） */
+  const tagBlocks = [
+    { kind: 'genre',    title: '🎮 游戏类型', cls: '' },
+    { kind: 'feature',  title: '✨ 游戏特色', cls: 'k-feature' },
+    { kind: 'category', title: '🧩 功能特性', cls: 'k-category' },
+    { kind: 'platform', title: '💻 支持平台', cls: 'k-platform' },
+  ].map(b => {
+    const list = tagsOfKind(g, b.kind);
+    if (!list.length) return '';
+    return '<div class="tag-block"><div class="tag-block-title">' + b.title + '（' + list.length + '）</div>' +
+      '<div>' + list.map(t => '<span class="tag ' + b.cls + '">' + esc(t) + '</span>').join('') + '</div></div>';
+  }).join('');
+  const tagsHtml = tagBlocks || '<span style="color:var(--muted)">暂无标签数据（可点 ♻️ 刷新获取）</span>';
+
+  /* 需求 #3：性价比明细（各因子可见，避免"黑箱打分"） */
+  const vsRows = vs.parts.map(x =>
+    '<div class="vs-row"><span class="vs-name">' + esc(x.name) + '</span>' +
+    '<span class="vs-bar"><i style="width:' + Math.round(x.norm * 100) + '%"></i></span>' +
+    '<span class="vs-pct">' + (x.known ? Math.round(x.norm * 100) + '%' : '缺数据') + '</span></div>').join('');
+
+  /* 需求 #2：折扣截止明细 */
+  const exp = p.discountExpiration;
+  const remainMs = saleRemainMs(g);
+  const saleLine = !p.isOnSale
+    ? '当前未在促销'
+    : (exp
+        ? '截止 ' + esc(fmtDeadline(exp)) + '（' + esc(fmtTime(exp)) + '）· 剩余 ' + esc(fmtRemain(remainMs))
+        : '<span style="color:var(--muted)">Steam 未返回该游戏折扣截止时间（常见于促销刚开始或区域接口差异）</span>');
 
   const dlcHtml = (g.dlcList && g.dlcList.length)
     ? g.dlcList.map(d2 =>
@@ -1885,25 +3240,42 @@ function openDetail(appid) {
         '</div>').join('')
     : '<div style="color:var(--muted)">暂无 DLC 数据（可点击行内 ♻️ 刷新获取）。</div>';
 
+  /* 需求 #4：同系列作品 */
+  const mates = STATE.games.filter(o => Number(o.appid) !== Number(g.appid) && isSameSeries(g, o).same);
+  const matesHtml = mates.length
+    ? '<div class="link-row">' + mates.map(m =>
+        '<a href="javascript:void(0)" data-open-appid="' + m.appid + '">' + esc(m.name) +
+        (m.price && m.price.isOnSale ? ' <span class="badge-disc">-' + m.price.discountPercent + '%</span>' : '') + '</a>').join('') + '</div>'
+    : '<span style="color:var(--muted)">未检测到同系列作品（同厂商 + 名称主干相似才判定为同系列）</span>';
+
   $('#detailBody').innerHTML =
     '<div class="detail-grid">' +
       '<div class="full">' + (d.headerImage ? '<img class="d-hero" src="' + esc(d.headerImage) + '" alt="">' : '') + '</div>' +
       '<div class="d-item"><div class="d-label">游戏名称</div><div class="d-val">' + esc(g.name) + '</div></div>' +
       '<div class="d-item"><div class="d-label">AppID / 英文名</div><div class="d-val">' + g.appid + ' · ' + esc(g.originalName || '—') + '</div></div>' +
-      '<div class="d-item"><div class="d-label">标签</div><div class="d-val">' + ((d.tags || []).map(t => '<span class="tag">' + esc(t) + '</span>').join('') || '—') + '</div></div>' +
+      '<div class="d-item full"><div class="d-label">标签（按类别）</div><div class="d-val">' + tagsHtml + '</div></div>' +
       '<div class="d-item"><div class="d-label">当前价格</div><div class="d-val">' + (p.current != null ? fmtPrice(p.current, p.currency) + (p.isOnSale ? ' <span class="badge-disc">-' + p.discountPercent + '%</span>（原价 ' + fmtPrice(p.original, p.currency) + '）' : '') : '<span class="low-pending">获取失败/待核</span>') + '</div></div>' +
-      '<div class="d-item"><div class="d-label">史低</div><div class="d-val">' + lowCellHtml(g) + '（来源：' + esc(lo.source || '未查询') + ' · 更新：' + fmtTime(lo.updatedAt) + '）</div></div>' +
+      '<div class="d-item"><div class="d-label">折扣截止</div><div class="d-val">' + saleLine + '</div></div>' +
+      '<div class="d-item"><div class="d-label">史低</div><div class="d-val">' + lowCellHtml(g) + '（来源：' + esc(lo.source || '未查询') + ' · 更新：' + fmtTime(lo.updatedAt) + '）' +
+        (isAtHistoricalLow(g) ? ' <span class="at-low-badge">当前已达史低</span>' : '') + '</div></div>' +
       '<div class="d-item"><div class="d-label">目标价</div><div class="d-val">' + targetCellHtml(g) + ' · ' + targetLine + '</div></div>' +
       '<div class="d-item"><div class="d-label">可信度</div><div class="d-val">' + confCellHtml(g) + '</div></div>' +
       '<div class="d-item"><div class="d-label">推荐</div><div class="d-val"><span class="rec-badge ' + rec.cls + '">' + rec.label + '</span></div></div>' +
-      '<div class="d-item"><div class="d-label">好评率 / 评分</div><div class="d-val">' + (r.positive != null ? r.positive + '%' : '—') + ' · ' + (r.score != null ? r.score.toFixed(1) : '待核') + (r.desc ? '（' + esc(r.desc) + '）' : '') + '</div></div>' +
+      '<div class="d-item"><div class="d-label">好评率 / 评分</div><div class="d-val">' + (r.positive != null ? r.positive + '%' : '—') + ' · ' + (r.score != null ? r.score.toFixed(1) : '待核') + (r.desc ? '（' + esc(r.desc) + '）' : '') +
+        (r.total ? '<br><small style="color:var(--muted)">共 ' + fmtCount(r.total) + ' 条评价</small>' : '') + '</div></div>' +
       '<div class="d-item"><div class="d-label">发行日期</div><div class="d-val">' + esc(d.releaseDate || '暂无数据') + '</div></div>' +
       '<div class="d-item"><div class="d-label">开发商</div><div class="d-val">' + esc((d.developers || []).join('、') || '暂无数据') + '</div></div>' +
       '<div class="d-item"><div class="d-label">发行商</div><div class="d-val">' + esc((d.publishers || []).join('、') || '暂无数据') + '</div></div>' +
-      '<div class="d-item"><div class="d-label">平台</div><div class="d-val">' + esc((d.platforms || []).join(' / ') || '暂无数据') + '</div></div>' +
       '<div class="d-item"><div class="d-label">Metacritic</div><div class="d-val">' + (d.metacritic != null ? d.metacritic : '暂无数据') + '</div></div>' +
       '<div class="d-item"><div class="d-label">简体中文</div><div class="d-val">' + (d.chineseSupport ? '✔ 支持' : '未在官方语言列表中确认') + '</div></div>' +
-      '<div class="d-item full"><div class="d-label">简介</div><div class="desc-box">' + esc(d.description || '暂无数据') + '</div></div>' +
+      '<div class="d-item full"><div class="d-label">综合性价比：' + vs.score + ' / 100 · <span class="val-badge ' + grade.cls + '">' + grade.label + '</span>' +
+        ' <small style="color:var(--muted);font-weight:400;">数据覆盖 ' + vs.coverage + '%</small></div>' +
+        '<div class="vs-box">' + vsRows + '</div>' +
+        '<div class="vs-note">算法：口碑 30% + 相对史低水位 22% + 绝对价格 12% + 折扣力度 12% + 史低稀缺性 8% + 媒体评分 6% + 中文支持 5% + 玩家体量 5%。缺数据的因子按中性值折算，覆盖度低于 55% 时表格中会标 *。</div>' +
+      '</div>' +
+      '<div class="d-item full"><div class="d-label">同系列作品（' + mates.length + '）</div><div class="d-val">' + matesHtml + '</div></div>' +
+      '<div class="d-item full"><div class="d-label">简介' + (d.descriptionTranslated ? '（机翻自官方原文）' : '') + '</div><div class="desc-box">' + esc(d.description || '暂无数据') + '</div>' +
+        (d.descriptionTranslated && d.descriptionOriginal ? '<div class="dlc-orig">原文：' + esc(clampText(d.descriptionOriginal, 260)) + '</div>' : '') + '</div>' +
       '<div class="d-item full"><div class="d-label">备注</div><div class="d-val">' + (g.note ? esc(g.note) : '<span style="color:var(--muted)">无（表格内 📝 可添加）</span>') + '</div></div>' +
       '<div class="d-item full"><div class="d-label">DLC（' + (g.dlcList ? g.dlcList.length : 0) + ' 个）</div><div>' + dlcHtml + '</div></div>' +
       '<div class="d-item full"><div class="d-label">DLC 汇总建议</div><div class="d-val">' + esc(dlcSummary(g)) + '</div></div>' +
@@ -1937,7 +3309,11 @@ function inlineEditCell(td, getVal, onSave) {
     done = true;
     if (save) {
       const raw = input.value.trim();
-      onSave(raw === '' ? null : (isNaN(parseFloat(raw)) ? undefined : parseFloat(raw)));
+      if (raw === '') onSave(null);
+      else {
+        const n = Number(raw);
+        onSave(isFinite(n) && n >= 0 ? n : undefined);
+      }
     }
     renderAll();
   };
@@ -1950,8 +3326,7 @@ function inlineEditCell(td, getVal, onSave) {
   input.addEventListener('blur', () => finish(true));
 }
 
-function saveManualLow(g, price, count) {
-  g.historicalLow = {
+function saveManualLow(g, price, count) {  g.historicalLow = {
     price: price != null ? price : (g.historicalLow ? g.historicalLow.price : null),
     count: count != null ? count : (g.historicalLow ? g.historicalLow.count : null),
     confidence: 'A', source: '手动确认', updatedAt: nowMs()
@@ -2100,6 +3475,104 @@ function exportJSON() {
   toast('已导出 steam-wishlist-' + todayStr() + '.json', 'success');
 }
 
+/* ============================================================
+ * 问题 #3：同步到云端（给 GitHub Actions 用的数据副本）
+ *   页面的数据只在浏览器里；云端定时刷新需要一份"服务器能看到的数据"。
+ *   本功能把当前清单导出成 data/wishlist.json 上传到仓库，
+ *   GitHub Actions 每天凌晨 2 点读取它 → 刷新价格 → 邮件发你。
+ *
+ *   上传方式：用 GitHub Contents API（需要你提供一个有 repo 权限的 token）。
+ *   token 只保存在你自己浏览器 localStorage，不会被上传到别处。
+ * ============================================================ */
+const CLOUD_KEY = 'sw_cloud_cfg_v1';
+function loadCloudCfg() {
+  try { return JSON.parse(localStorage.getItem(CLOUD_KEY) || '{}') || {}; } catch (e) { return {}; }
+}
+function saveCloudCfg(cfg) {
+  try { localStorage.setItem(CLOUD_KEY, JSON.stringify(cfg)); } catch (e) {}
+}
+/* btoa 不支持中文，先转 UTF-8 再 base64（GitHub API 要求 base64） */
+function utf8ToBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  bytes.forEach(b => { bin += String.fromCharCode(b); });
+  return btoa(bin);
+}
+async function cloudSync() {
+  const cfg = loadCloudCfg();
+  const owner = cfg.owner || 'TicianLi';
+  const repo = cfg.repo || 'wishlist';
+  const branch = cfg.branch || 'main';
+  const filePath = cfg.path || 'data/wishlist.json';
+  let token = cfg.token || '';
+
+  if (!token) {
+    token = prompt(
+      '把清单同步到云端（供每日自动刷新使用）\n\n' +
+      '需要一个 GitHub Token（只存在你本机）：\n' +
+      '1) 打开 github.com/settings/tokens?type=beta\n' +
+      '2) Fine-grained token → 只勾选本仓库的 Contents: Read and write\n' +
+      '3) 复制生成的 token 粘贴到这里\n\n' +
+      '仓库：' + owner + '/' + repo + '\n文件：' + filePath, '') || '';
+    token = token.trim();
+    if (!token) { toast('未提供 Token，已取消同步。', 'info'); return; }
+    cfg.token = token; saveCloudCfg(cfg);
+  }
+
+  const payload = { version: CONFIG.SCHEMA_VERSION, updatedAt: nowMs(), games: STATE.games };
+  const content = utf8ToBase64(JSON.stringify(payload, null, 2));
+  const api = 'https://api.github.com/repos/' + owner + '/' + repo + '/contents/' + filePath;
+  const headers = {
+    'Authorization': 'Bearer ' + token,
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28'
+  };
+
+  holdProgress();
+  try {
+    setProgress('正在同步到云端…', null);
+    // 先取当前 sha（文件已存在时必须提供，才允许更新）
+    let sha = null;
+    try {
+      const r = await fetch(api + '?ref=' + encodeURIComponent(branch), { headers });
+      if (r.ok) { const j = await r.json(); sha = j.sha || null; }
+      else if (r.status !== 404) { throw new Error('读取远端失败 HTTP ' + r.status); }
+    } catch (e) {
+      if (/读取远端失败/.test(e.message)) throw e;
+      // 网络问题：继续尝试直接 PUT（新文件）
+    }
+    const body = {
+      message: 'chore: 从页面同步愿望单数据 ' + todayStr(),
+      content: content,
+      branch: branch,
+      ...(sha ? { sha } : {})
+    };
+    const resp = await fetch(api, { method: 'PUT', headers, body: JSON.stringify(body) });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error('HTTP ' + resp.status + (err.message ? '：' + err.message : ''));
+    }
+    toast('✅ 已同步到云端（' + owner + '/' + repo + '/' + filePath + '）。每天凌晨 2 点会自动刷新并发邮件。', 'success', 8000);
+    dbgPush({ ok: true, via: 'cloud-sync', url: shortUrl(api), ms: 0, size: content.length });
+  } catch (e) {
+    toast('云端同步失败：' + e.message + '（可在设置里重新配置 Token）', 'error', 9000);
+    dbgPush({ ok: false, via: 'cloud-sync', url: shortUrl(api), err: String(e.message) });
+  } finally {
+    releaseProgress();
+  }
+}
+$('#btnCloudSync').addEventListener('click', () => {
+  const cfg = loadCloudCfg();
+  const remember = cfg.token ? '（已保存 Token，将直接同步）' : '（首次使用需要 Token）';
+  showConfirm(
+    '把当前 ' + STATE.games.length + ' 款游戏同步到云端 ' + (cfg.owner || 'TicianLi') + '/' + (cfg.repo || 'wishlist') + '？\n\n' +
+    '· 云端副本仅供 GitHub Actions 每日自动刷新使用\n' +
+    '· 你本机的数据不会被改动\n' +
+    '· 你的备注/目标价/手动史低都会一并上传' + remember,
+    () => cloudSync()
+  );
+});
+
 async function importJSONFile(file) {
   let data;
   try { data = JSON.parse(await file.text()); }
@@ -2144,10 +3617,49 @@ async function importJSONFile(file) {
           merged++;
         }
       });
-      saveData(); renderAll();
+      saveData();
+      /* 需求 #4：导入完成后做一次系列识别（只统计，不改变显示开关）
+         问题 #2：不再自动打开分组，尊重用户当前选择。 */
+      const seriesInfo = autoGroupSeries();
+      renderAll();
       toast('导入完成：新增 ' + added + '，合并 ' + merged + (overwrite ? '（已覆盖用户手动数据）' : '（用户手动数据未覆盖）') + '。', 'success', 6000);
+      if (seriesInfo.groups > 0) {
+        toast('📚 已自动识别 ' + seriesInfo.groups + ' 个系列、共 ' + seriesInfo.games + ' 部作品。需要归组显示可点工具栏「📚 系列分组」。', 'info', 8000);
+      }
     },
     { extraText: '覆盖已有的目标价 / 备注 / 手动史低' });
+}
+
+/* 自动系列归并（需求 #4）：跑一遍识别，只统计"有哪些系列"。
+ *
+ * 修复（问题 #2）：旧实现一旦发现有系列，就强行把 groupBySeries 置为 true
+ * 并写回 localStorage —— 于是用户手动关掉分组后，只要录入了新游戏
+ * （addGameByAppid 会调用 autoGroupSeries），开关又被强制打开；刷新页面
+ * 时 loadFilters 读到被写坏的 '1'，分组就"自己"展开了。
+ *
+ * 现在的原则：识别归识别、显示归显示，两者解耦。
+ * 用户没有明确表态过时，默认平铺（关）；用户点过开关则严格记住他的选择，
+ * 本函数永不修改 groupBySeries，也永不写 localStorage。 */
+function autoGroupSeries() {
+  const groups = buildSeriesGroups(STATE.games).filter(gr => gr.games.length > 1);
+  const gameCount = groups.reduce((s, gr) => s + gr.games.length, 0);
+  return { groups: groups.length, games: gameCount };
+}
+/* 手动触发一次系列扫描（新增按钮用）
+ * 问题 #2：重扫只负责"识别 + 报告"，不擅自打开分组。
+ * 如果确实扫到了系列而当前是关闭状态，给一个"一键展开"的明确入口。 */
+function rescanSeries() {
+  const info = autoGroupSeries();
+  renderAll();
+  if (info.groups > 0) {
+    if (STATE.groupBySeries === true) {
+      toast('📚 识别到 ' + info.groups + ' 个系列、' + info.games + ' 部作品（分组显示已开启）。', 'success');
+    } else {
+      toast('📚 识别到 ' + info.groups + ' 个系列、' + info.games + ' 部作品；当前为平铺显示，点「📚 系列分组」即可归组查看。', 'info', 8000);
+    }
+  } else {
+    toast('未识别到同系列作品（需要开发商/发行商 + 名称主干匹配）。', 'info');
+  }
 }
 $('#importFile').addEventListener('change', e => {
   const f = e.target.files[0];
@@ -2161,17 +3673,32 @@ $('#importFile').addEventListener('change', e => {
 function openSettings() {
   const s = STATE.settings;
   $('#setItadKey').value = s.itadKey;
+  $('#setItadPublicProxy').checked = !!s.itadAllowPublicProxy;
   $('#setProxy').value = s.customProxy;
   $('#setAutoTranslate').checked = s.autoTranslate;
   $('#setPublicProxy').checked = s.usePublicProxies;
   $('#setTimeout').value = s.timeoutMs;
   $('#setCacheH').value = s.cacheHours;
   $('#setOcr').checked = s.ocrEnabled;
+  // 问题 #4：同步访问密码状态提示
+  const hint = $('#gateStateHint');
+  if (hint) {
+    if (gateIsEnabled()) {
+      const remember = gateHasPass();
+      hint.innerHTML = '当前状态：<b style="color:#6fd88f">已启用密码保护</b>' +
+        (remember ? '（本机已通过验证）' : '') + '。<br>修改密码后，本机需要重新输入。';
+    } else {
+      hint.innerHTML = '当前状态：<b style="color:var(--orange)">未启用</b> —— 任何知道网址的人都能访问。建议设置密码。';
+    }
+  }
   openModal('modalSettings');
 }
+$('#btnGateSet').addEventListener('click', openGateSettings);
+$('#btnGateClear').addEventListener('click', clearGatePassword);
 $('#btnSaveSettings').addEventListener('click', () => {
   const s = STATE.settings;
   s.itadKey = $('#setItadKey').value.trim();
+  s.itadAllowPublicProxy = $('#setItadPublicProxy').checked;
   s.customProxy = $('#setProxy').value.trim();
   s.autoTranslate = $('#setAutoTranslate').checked;
   s.usePublicProxies = $('#setPublicProxy').checked;
@@ -2215,9 +3742,17 @@ $('#btnImportWish').addEventListener('click', () => openModal('modalImport'));
 $('#btnWishParse').addEventListener('click', importWishlist);
 $('#btnSettings').addEventListener('click', openSettings);
 $('#btnCancelTask').addEventListener('click', () => {
-  // 立刻响应：设置标志位 + 中断当前所有进行中的 fetch；不等当前条目跑完
+  // 立刻响应：设置总闸 + 中断当前进行中的 fetch；不等当前条目跑完
   STATE.cancelTask = true;
   if (STATE.currentTaskAbort) { try { STATE.currentTaskAbort.abort(); } catch (e) {} }
+  // 同时标记队列里所有未完成任务为取消，避免它们继续被当作"待处理"而卡住
+  STATE.taskQueue.forEach(t => {
+    if (t.status === 'pending' || t.status === 'needpick') { t.cancelled = true; t.status = 'failed'; t.msg = '已取消'; }
+  });
+  renderQueue();
+  // 关键修复（#5）：取消完成后立刻复位总闸。
+  // 否则之后新加入的任务会在 runTask 第一行就命中 cancelTask 而被秒判"已取消"。
+  setTimeout(() => { STATE.cancelTask = false; }, 0);
   toast('已请求取消，正在立即打断当前请求…', 'warn', 1800);
 });
 $('#btnOCR').addEventListener('click', () => openModal('modalOCR'));
@@ -2247,14 +3782,203 @@ $$('.sortable').forEach(th => th.addEventListener('click', () => {
   const key = th.dataset.sort;
   if (STATE.sort.key === key) STATE.sort.dir = -STATE.sort.dir;
   else { STATE.sort.key = key; STATE.sort.dir = 1; }
+  STATE.renderLimit = 300;   // 换排序回到第一页
   renderTable(); renderSortArrows();
 }));
 
 // 筛选
-const applyFilterUi = () => { saveFilters(); renderTable(); renderStats(); };
+const applyFilterUi = () => { saveFilters(); STATE.renderLimit = 300; renderTable(); renderStats(); };
 $('#filterSearch').addEventListener('input', debounce(() => { STATE.filters.search = $('#filterSearch').value; applyFilterUi(); }, 200));
-[['filterRec', 'rec'], ['filterConf', 'conf'], ['filterTarget', 'target']].forEach(([id, key]) => {
-  $('#' + id).addEventListener('change', () => { STATE.filters[key] = $('#' + id).value; applyFilterUi(); });
+[['filterRec', 'rec'], ['filterConf', 'conf'], ['filterTarget', 'target'],
+ ['filterSale', 'sale'], ['filterSeries', 'series'], ['filterValue', 'value'],
+ ['filterGenre', 'genre'], ['filterFeature', 'feature']].forEach(([id, key]) => {
+  const el = $('#' + id);
+  if (!el) return;
+  el.addEventListener('change', () => { STATE.filters[key] = el.value; applyFilterUi(); });
+});
+/* 「类别」列显示的标签类别切换（需求 #1） */
+(function initTagKind() {
+  const sel = $('#tagKindSel');
+  if (!sel) return;
+  sel.innerHTML = TAG_KINDS.map(k => '<option value="' + k.key + '">' + k.label + '</option>').join('');
+  sel.value = STATE.tagKind || 'genre';
+  sel.addEventListener('click', e => e.stopPropagation());   // 别触发排序
+  sel.addEventListener('change', () => {
+    STATE.tagKind = sel.value;
+    try { localStorage.setItem('sw_tagkind_v3', STATE.tagKind); } catch (e) {}
+    renderTable();
+  });
+})();
+/* 系列分组开关（需求 #4 / 问题 #2） */
+function setGroupBySeries(on) {
+  STATE.groupBySeries = !!on;
+  try { localStorage.setItem('sw_group_v3', STATE.groupBySeries ? '1' : '0'); } catch (e) {}
+  syncGroupBtn();
+  renderTable();
+}
+$('#btnGroupToggle').addEventListener('click', () => {
+  setGroupBySeries(!(STATE.groupBySeries === true));
+});
+$('#btnRescanSeries').addEventListener('click', rescanSeries);
+function syncGroupBtn() {
+  const b = $('#btnGroupToggle');
+  if (!b) return;
+  const on = STATE.groupBySeries === true;
+  b.classList.toggle('off', !on);
+  b.setAttribute('aria-expanded', on ? 'true' : 'false');
+  b.textContent = on ? '📚 系列分组：开' : '📚 系列分组：关';
+  b.title = on ? '当前：同系列作品归组显示（点击关闭）' : '当前：平铺显示（点击开启系列分组）';
+}
+/* 一键重置所有筛选（需求 #5 配套） */
+$('#btnResetFilters').addEventListener('click', () => {
+  STATE.filters = { search: '', rec: '', conf: '', target: '', sale: '', series: '', value: '', genre: '', feature: '' };
+  saveFilters();
+  syncFilterUi();
+  renderAll();
+  toast('已重置全部筛选条件。', 'success');
+});
+/* 用现有数据填充「类型 / 特色」下拉（去重 + 计数）
+ * 注意：这两个下拉的 option 是「动态生成」的，每次 renderAll 都会重建。
+ * 必须保留用户当前选中值（优先取 STATE.filters，其次取 DOM 现值），
+ * 否则 renderAll 一跑就会把用户刚选的筛选条件冲掉。 */
+function refreshTagFilterOptions() {
+  const genreCount = {}, featCount = {};
+  STATE.games.forEach(g => {
+    const d = g.details || {};
+    (d.genres || []).forEach(t => { genreCount[t] = (genreCount[t] || 0) + 1; });
+    (d.featureTags || []).forEach(t => { featCount[t] = (featCount[t] || 0) + 1; });
+  });
+  const fill = (sel, map, key) => {
+    if (!sel) return;
+    // 选中值优先级：STATE.filters（权威）> DOM 现值 > 空
+    const cur = STATE.filters[key] || sel.value || '';
+    const items = Object.keys(map).sort((a, b) => map[b] - map[a]);
+    const want = '<option value="">' + sel.dataset.allLabel + '</option>' +
+      items.map(t => '<option value="' + esc(t) + '">' + esc(t) + '（' + map[t] + '）</option>').join('');
+    if (sel.__lastHtml !== want) {   // 内容没变就不动 DOM，避免打断用户操作
+      sel.innerHTML = want;
+      sel.__lastHtml = want;
+    }
+    sel.value = cur;
+  };
+  const gs = $('#filterGenre'), fs = $('#filterFeature');
+  if (gs) gs.dataset.allLabel = '全部类型';
+  if (fs) fs.dataset.allLabel = '全部特色';
+  fill(gs, genreCount, 'genre');
+  fill(fs, featCount, 'feature');
+  // 若之前选的标签已不存在，清掉避免"筛出空表"
+  if (STATE.filters.genre && !genreCount[STATE.filters.genre]) { STATE.filters.genre = ''; if (gs) gs.value = ''; }
+  if (STATE.filters.feature && !featCount[STATE.filters.feature]) { STATE.filters.feature = ''; if (fs) fs.value = ''; }
+}
+/* 把所有筛选控件同步成 STATE.filters 的值（boot / 重置后调用） */
+function syncFilterUi() {
+  const map = [['filterSearch', 'search'], ['filterRec', 'rec'], ['filterConf', 'conf'],
+    ['filterTarget', 'target'], ['filterSale', 'sale'], ['filterSeries', 'series'],
+    ['filterValue', 'value'], ['filterGenre', 'genre'], ['filterFeature', 'feature']];
+  map.forEach(([id, key]) => { const el = $('#' + id); if (el) el.value = STATE.filters[key] || ''; });
+  const tk = $('#tagKindSel'); if (tk) tk.value = STATE.tagKind || 'genre';
+}
+
+/* ============================================================
+ * 工具栏分区折叠（问题 #1）
+ *   · 三个分区各自记忆开/关，刷新后保持用户上次的状态
+ *   · 折叠状态下，仍在标题行显示"当前生效的筛选条件"小标签，
+ *     并可直接点 × 清除某一条 —— 解决"折叠后看不到筛了什么"的隐患
+ *   · 所有原有控件 id 不变，原有事件绑定与逻辑一律不受影响
+ * ============================================================ */
+const TB_SECTIONS = ['secAdd', 'secTools'];
+const TB_KEY = 'sw_toolsec_v3';
+const TB_DEFAULT = { secAdd: true, secTools: false };   // 添加区默认展开，工具区默认收起
+
+function loadToolSections() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(TB_KEY) || '{}') || {}; } catch (e) { saved = {}; }
+  TB_SECTIONS.forEach(id => {
+    const sec = document.getElementById(id);
+    if (!sec) return;
+    const open = (typeof saved[id] === 'boolean') ? saved[id] : !!TB_DEFAULT[id];
+    setToolSection(id, open, true);
+  });
+}
+function setToolSection(id, open, silent) {
+  const sec = document.getElementById(id);
+  if (!sec) return;
+  sec.classList.toggle('open', !!open);
+  sec.classList.toggle('closed', !open);
+  const head = sec.querySelector('.tb-head');
+  if (head) head.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (!silent) saveToolSections();
+  // 折叠/展开会改变"小标签"是否需要显示，这里同步一次，避免状态残留
+  if (id === 'secTools' && typeof renderActiveFilters === 'function') renderActiveFilters();
+}
+function saveToolSections() {
+  const state = {};
+  TB_SECTIONS.forEach(id => {
+    const sec = document.getElementById(id);
+    if (sec) state[id] = sec.classList.contains('open');
+  });
+  try { localStorage.setItem(TB_KEY, JSON.stringify(state)); } catch (e) {}
+}
+(() => {
+  TB_SECTIONS.forEach(id => {
+    const sec = document.getElementById(id);
+    if (!sec) return;
+    const head = sec.querySelector('.tb-head');
+    if (!head) return;
+    const toggle = () => {
+      const open = !sec.classList.contains('open');
+      setToolSection(id, open);
+      // 展开工具区时重新校正表格横向滚动容器高度
+      if (open && id === 'secTools') setTimeout(() => { try { setupXScroll(); } catch (e) {} }, 60);
+    };
+    head.addEventListener('click', toggle);
+    head.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+  });
+})();
+
+/* 折叠时在标题行显示生效中的筛选条件（可单独清除） */
+const ACTIVE_FILTER_DEFS = [
+  { key: 'search',  label: '搜索' },
+  { key: 'rec',     label: '推荐', get: v => ({ buy: '必买', waitpromo: '等促销', cheap: '骨折入', ok: '可入', wait: '观望', free: '免费入' }[v] || v) },
+  { key: 'conf',    label: '可信度' },
+  { key: 'target',  label: '目标价', get: v => ({ reached: '已达', notreached: '未达', unset: '未设' }[v] || v) },
+  { key: 'sale',    label: '促销', get: v => ({ onsale: '正在打折', lowest: '正在史低', belowlow: '已破史低', ending: '24h内结束', ending3: '3天内结束', notsale: '未打折' }[v] || v) },
+  { key: 'series',  label: '作品范围', get: v => ({ in: '仅系列作品', solo: '仅独立作品' }[v] || v) },
+  { key: 'value',   label: '性价比' },
+  { key: 'genre',   label: '类型' },
+  { key: 'feature', label: '特色' }
+];
+function renderActiveFilters() {
+  const sec = document.getElementById('secTools');
+  const box = document.getElementById('secToolsActive');
+  const badge = document.getElementById('secToolsBadge');
+  if (!sec || !box) return;
+  const chips = [];
+  ACTIVE_FILTER_DEFS.forEach(def => {
+    const raw = STATE.filters[def.key];
+    if (raw == null || raw === '') return;
+    const text = def.get ? def.get(raw) : raw;
+    chips.push('<span class="active-chip" data-fkey="' + def.key + '"><b>' + esc(def.label) + '</b>：' + esc(text) +
+      '<button class="chip-x" data-clear-fkey="' + def.key + '" title="清除该筛选条件">×</button></span>');
+  });
+  box.innerHTML = chips.join('');
+  const has = chips.length > 0;
+  sec.classList.toggle('has-active', has && !sec.classList.contains('open'));
+  if (badge) {
+    badge.style.display = has ? '' : 'none';
+    badge.textContent = chips.length + ' 个筛选生效';
+  }
+}
+const secToolsActiveEl = document.getElementById('secToolsActive');
+if (secToolsActiveEl) secToolsActiveEl.addEventListener('click', e => {
+  const btn = e.target.closest('[data-clear-fkey]');
+  if (!btn) return;
+  STATE.filters[btn.dataset.clearFkey] = '';
+  saveFilters();
+  syncFilterUi();
+  renderTable(); renderStats(); renderActiveFilters();
 });
 
 // 快捷键：/ 聚焦搜索，Esc 关闭弹窗
@@ -2275,20 +3999,246 @@ window.addEventListener('error', ev => {
 });
 
 /* ============================================================
- * BOOT
+ * 问题 #4：隐私访问门实现
+ *   · SHA-256(salt + ':' + 密码) 与 GATE_CONFIG.hash 比对
+ *   · 通过后在本机写入带过期时间的凭证（"记住我"）
+ *   · 密码明文永不写盘；localStorage 里只有哈希
  * ============================================================ */
+async function sha256Hex(text) {
+  if (window.crypto && window.crypto.subtle && window.isSecureContext !== false) {
+    try {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (e) { /* 退回纯 JS 实现（http / 老浏览器） */ }
+  }
+  return sha256Fallback(text);
+}
+/* 纯 JS SHA-256 兜底：用于 file:// 或非安全上下文（crypto.subtle 不可用时）。
+   标准 FIPS 180-4 实现，输出 64 位小写十六进制。 */
+async function sha256Fallback(ascii) {
+  // UTF-8 编码
+  const utf8 = unescape(encodeURIComponent(String(ascii)));
+  const bytes = [];
+  for (let i = 0; i < utf8.length; i++) bytes.push(utf8.charCodeAt(i) & 0xff);
+  const bitLen = bytes.length * 8;
+  bytes.push(0x80);
+  while (bytes.length % 64 !== 56) bytes.push(0);
+  // 64 位大端长度（高 32 位这里恒为 0，JS 字符串不可能到 2^32 字节）
+  bytes.push(0, 0, 0, 0);
+  bytes.push((bitLen >>> 24) & 0xff, (bitLen >>> 16) & 0xff, (bitLen >>> 8) & 0xff, bitLen & 0xff);
+
+  const K = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+  ];
+  let H = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+
+  const rotr = (x, n) => ((x >>> n) | (x << (32 - n))) >>> 0;
+  for (let off = 0; off < bytes.length; off += 64) {
+    const w = new Array(64);
+    for (let i = 0; i < 16; i++) {
+      w[i] = ((bytes[off + i * 4] << 24) | (bytes[off + i * 4 + 1] << 16) |
+              (bytes[off + i * 4 + 2] << 8) | (bytes[off + i * 4 + 3])) >>> 0;
+    }
+    for (let i = 16; i < 64; i++) {
+      const s0 = (rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3)) >>> 0;
+      const s1 = (rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10)) >>> 0;
+      w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+    }
+    let [a, b, c, d, e, f, g, h] = H;
+    for (let i = 0; i < 64; i++) {
+      const S1 = (rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)) >>> 0;
+      const ch = ((e & f) ^ (~e & g)) >>> 0;
+      const t1 = (h + S1 + ch + K[i] + w[i]) >>> 0;
+      const S0 = (rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)) >>> 0;
+      const maj = ((a & b) ^ (a & c) ^ (b & c)) >>> 0;
+      const t2 = (S0 + maj) >>> 0;
+      h = g; g = f; f = e; e = (d + t1) >>> 0;
+      d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+    }
+    H = [(H[0] + a) >>> 0, (H[1] + b) >>> 0, (H[2] + c) >>> 0, (H[3] + d) >>> 0,
+         (H[4] + e) >>> 0, (H[5] + f) >>> 0, (H[6] + g) >>> 0, (H[7] + h) >>> 0];
+  }
+  return H.map(x => x.toString(16).padStart(8, '0')).join('');
+}
+
+/* 供用户在控制台/设置面板生成哈希：__gateMakeHash('我的密码') */
+window.__gateMakeHash = async function (plain, salt) {
+  const s = salt || GATE_CONFIG.salt;
+  const h = await sha256Hex(s + ':' + String(plain));
+  console.log('%c密码哈希已生成', 'color:#6fd88f;font-weight:bold');
+  console.log('hash = ' + h);
+  console.log('salt = ' + s);
+  console.log('把上面两行填进 GATE_CONFIG，或用设置面板里的「访问密码」一键设置。');
+  return { hash: h, salt: s };
+};
+
+function gateStorageGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+function gateStorageSet(key, val) { try { localStorage.setItem(key, val); } catch (e) {} }
+function gateStorageDel(key) { try { localStorage.removeItem(key); } catch (e) {} }
+
+/* 当前生效的哈希：以 localStorage 覆盖值为准（设置面板改密码后无需重新部署） */
+function gateCurrentConfig() {
+  const h = gateStorageGet('sw_gate_hash') || GATE_CONFIG.hash || '';
+  const s = gateStorageGet('sw_gate_salt') || GATE_CONFIG.salt || '';
+  return { hash: h, salt: s };
+}
+function gateIsEnabled() { return !!gateCurrentConfig().hash; }
+
+function gateUnlock() {
+  document.body.classList.remove('gate-locked');
+  const g = document.getElementById('gate');
+  if (g) g.classList.add('gate-hidden');
+}
+function gateLock() {
+  document.body.classList.add('gate-locked');
+  const g = document.getElementById('gate');
+  if (g) g.classList.remove('gate-hidden');
+}
+/* 本机是否已通过验证（且未过期） */
+function gateHasPass() {
+  const raw = gateStorageGet(GATE_CONFIG.lockKey);
+  if (!raw) return false;
+  try {
+    const obj = JSON.parse(raw);
+    if (!obj || !obj.exp) return false;
+    if (nowMs() > obj.exp) { gateStorageDel(GATE_CONFIG.lockKey); return false; }
+    return obj.hash === gateCurrentConfig().hash;   // 改了密码 → 旧凭证自动失效
+  } catch (e) { gateStorageDel(GATE_CONFIG.lockKey); return false; }
+}
+function gateGrantPass(remember) {
+  if (!remember) { gateStorageDel(GATE_CONFIG.lockKey); return; }
+  const days = GATE_CONFIG.rememberDays || 7;
+  gateStorageSet(GATE_CONFIG.lockKey, JSON.stringify({
+    hash: gateCurrentConfig().hash,
+    exp: nowMs() + days * 24 * 3600 * 1000
+  }));
+}
+/* 失败限速：连续错 5 次后每次多等 3 秒，防暴力试口令 */
+function gateFailCount() { return Number(gateStorageGet(GATE_CONFIG.attemptsKey) || 0) || 0; }
+function gateBumpFail() { gateStorageSet(GATE_CONFIG.attemptsKey, String(gateFailCount() + 1)); }
+function gateResetFail() { gateStorageDel(GATE_CONFIG.attemptsKey); }
+
+function initGate() {
+  const gateEl = document.getElementById('gate');
+  if (!gateEl) return;
+  if (!gateIsEnabled()) { gateUnlock(); return; }   // 未设密码 → 直接放行
+  if (gateHasPass()) { gateUnlock(); return; }      // 本机已通过 → 放行
+  gateLock();
+  const input = document.getElementById('gateInput');
+  const btn = document.getElementById('gateBtn');
+  const msg = document.getElementById('gateMsg');
+  const remember = document.getElementById('gateRemember');
+  if (remember) remember.checked = true;
+
+  let checking = false;
+  const submit = async () => {
+    if (checking) return;
+    const val = String(input.value || '');
+    if (!val) { msg.textContent = '请输入密码。'; input.focus(); return; }
+    const fails = gateFailCount();
+    if (fails >= 5) {
+      const wait = Math.min((fails - 4) * 3, 30);
+      checking = true;
+      msg.textContent = '尝试次数过多，请等待 ' + wait + ' 秒…';
+      btn.disabled = true; input.disabled = true;
+      await sleep(wait * 1000);
+      btn.disabled = false; input.disabled = false; checking = false;
+      if (msg.textContent.indexOf('尝试次数过多') === 0) msg.textContent = '';
+    }
+    checking = true;
+    btn.disabled = true;
+    const cfg = gateCurrentConfig();
+    let h;
+    try { h = await sha256Hex(cfg.salt + ':' + val); }
+    catch (e) { h = ''; }
+    if (h && h === cfg.hash) {
+      gateResetFail();
+      gateGrantPass(!!(remember && remember.checked));
+      msg.textContent = '';
+      gateUnlock();
+      toast('欢迎回来 👋', 'success', 2200);
+      // 解锁后补一次渲染，保证布局尺寸正确（隐藏期间无法测量）
+      setTimeout(() => { try { renderAll(); } catch (e) {} }, 60);
+    } else {
+      gateBumpFail();
+      msg.textContent = '密码错误' + (gateFailCount() >= 3 ? '（已连续错误 ' + gateFailCount() + ' 次）' : '') + '。';
+      input.value = '';
+      input.focus();
+      btn.disabled = false;
+      checking = false;
+    }
+  };
+  btn.addEventListener('click', submit);
+  input.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+  });
+  setTimeout(() => { try { input.focus(); } catch (e) {} }, 120);
+}
+
+/* 设置面板里的「访问密码」管理 */
+function openGateSettings() {
+  const on = gateIsEnabled();
+  const cur = gateCurrentConfig();
+  const np = prompt(
+    (on ? '修改访问密码\n\n' : '设置访问密码\n\n') +
+    '请输入新密码（建议 6 位以上）：\n' +
+    '· 输入后立即生效，本机需要重新验证\n' +
+    '· 想彻底取消密码，直接点「取消」再点下面的清空\n', '');
+  if (np === null) return;
+  const pwd = String(np).trim();
+  if (!pwd) { toast('未输入内容，密码未修改。', 'info'); return; }
+  if (pwd.length < 4) { toast('密码太短（至少 4 位），未修改。', 'warn'); return; }
+  const salt = cur.salt || 'sw-gate-v1';
+  sha256Hex(salt + ':' + pwd).then(h => {
+    gateStorageSet('sw_gate_hash', h);
+    gateStorageSet('sw_gate_salt', salt);
+    gateStorageDel(GATE_CONFIG.lockKey);   // 旧凭证失效
+    gateResetFail();
+    toast('访问密码已设置 ✅ 请刷新页面验证；本机 7 天内免输入请勾选「记住我」。', 'success', 7000);
+    console.log('%c访问密码已更新', 'color:#6fd88f;font-weight:bold');
+    console.log('hash = ' + h);
+    console.log('salt = ' + salt);
+    console.log('想写进源码永久生效，把上面两行填到 index.html 的 GATE_CONFIG 即可。');
+  });
+}
+function clearGatePassword() {
+  if (!gateIsEnabled()) { toast('当前没有设置访问密码。', 'info'); return; }
+  showConfirm('确定要取消访问密码吗？取消后任何知道网址的人都能访问本页面。', () => {
+    gateStorageDel('sw_gate_hash');
+    gateStorageDel('sw_gate_salt');
+    gateStorageDel(GATE_CONFIG.lockKey);
+    gateUnlock();
+    toast('访问密码已取消，页面已恢复公开访问。', 'warn', 6000);
+  }, { danger: true });
+}
+
+
 function boot() {
   loadSettings();
   loadTransCache();
   loadFilters();
   loadData();
-  // 恢复筛选 UI
-  $('#filterSearch').value = STATE.filters.search || '';
-  $('#filterRec').value = STATE.filters.rec || '';
-  $('#filterConf').value = STATE.filters.conf || '';
-  $('#filterTarget').value = STATE.filters.target || '';
+  loadToolSections();          // 问题 #1：恢复工具栏各分区的折叠状态
+  // 恢复筛选 UI（含新增的促销/系列/性价比/类型/特色）
+  syncFilterUi();
+  initGate();                  // 问题 #4：访问密码门（未设密码则直接放行）
+  /* 修复 #1：页面刷新后进度条一律从"完全隐藏、无动画"的状态起步。
+     旧代码若上一轮留了 indet 动画类，刷新后会先看到一条假进度。 */
+  progressTokens = 0;
+  hideProgress(true);
   renderAll();
   renderQueue();
+  bindWindowScroll();
+  setupXScroll();
+  setTimeout(setupXScroll, 300);   // 等字体/图片落位后校正一次高度
   // 缓存时间设置真正生效：检测超过缓存期的数据并提示（不自动发请求，避免打开页面即产生流量）
   const ttl = STATE.settings.cacheHours * 3600000;
   const expired = STATE.games.filter(g => !g.price || !g.price.updatedAt || (nowMs() - g.price.updatedAt) > ttl).length;
@@ -2319,6 +4269,12 @@ function showFatalError(e) {
   document.body.appendChild(bar);
 }
 try { boot(); } catch (e) { showFatalError(e); console.error(e); }
+
+/* 调试钩子：仅暴露只读查询函数，方便排查搜索/翻译问题（不影响正常使用） */
+window.__testSearch = t => steamSearch(t);
+window.__testTranslate = t => translateText(t);
+window.__testAppDetails = id => steamAppDetails(id);
 </script>
 </body>
 </html>
+

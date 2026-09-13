@@ -1,0 +1,20 @@
+{
+  "name": "steam-wishlist-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Steam 愿望单 · 每日自动刷新与邮件导出的自动化工具（依赖仅安装在 CI 环境）",
+  "scripts": {
+    "refresh": "node tools/daily-refresh.mjs",
+    "selftest": "node tools/_selftest.mjs",
+    "test:index": "node tools/_test_index.cjs",
+    "test:sha": "node tools/_test_sha.cjs",
+    "test:ui": "node tools/_test_ui.cjs",
+    "test:gate": "node tools/_test_gate.cjs"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.14"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
