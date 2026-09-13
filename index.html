@@ -1297,13 +1297,21 @@ $('#taskList').addEventListener('click', e => {
     else { t.status = 'pending'; t.msg = '重新排队…'; pumpQueue(); }
     renderQueue();
   }
-  else if (btn.dataset.tact === 'remove') {
+    else if (btn.dataset.tact === 'remove') {
     // 移除任务时立刻取消其 fetch，避免它继续阻塞队列或浪费请求
     if (t.status === 'running' || t.status === 'needpick') {
       STATE.cancelTask = true;
       if (STATE.currentTaskAbort) { try { STATE.currentTaskAbort.abort(); } catch (e) {} }
     }
-    if (t.resolvePick) { const r = t.resolvePick; t.resolvePick = null; r(null); }
+    // 【修复代码】关闭候选选择器弹窗，避免透明遮罩层残留导致整个页面无法点击
+    if ($('#modalCandidates').classList.contains('show')) {
+      closeModal('modalCandidates');
+    }
+    if (t.resolvePick) {
+      const r = t.resolvePick;
+      t.resolvePick = null;
+      r(null);
+    }
     STATE.taskQueue = STATE.taskQueue.filter(x => x.id !== t.id);
     renderQueue();
   }
